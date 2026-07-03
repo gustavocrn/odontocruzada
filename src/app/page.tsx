@@ -753,7 +753,7 @@ export default function HomeRoot() {
   };
 
   return (
-    <div className={`flex flex-col min-h-screen selection:bg-dentist-500 selection:text-white transition-colors duration-300 ${
+    <div className={`h-screen w-screen overflow-hidden flex flex-col selection:bg-dentist-500 selection:text-white transition-colors duration-300 ${
       theme === "dark"
         ? "text-slate-100 bg-gradient-to-b from-[#0a1122] to-[#040810]"
         : "text-slate-800 bg-gradient-to-b from-slate-50 to-slate-100"
@@ -762,170 +762,134 @@ export default function HomeRoot() {
       <div className="fixed inset-0 pointer-events-none z-0 bg-[radial-gradient(circle_at_15%_15%,rgba(20,163,181,0.12),transparent_45%)]" />
 
       {/* CABEÇALHO GLOBAL */}
-      <header className={`glass-panel border-b py-2.5 px-4 sticky top-0 z-35 flex justify-between items-center backdrop-blur-md transition-colors duration-200 ${
+      <header className={`glass-panel border-b py-2 px-4 sticky top-0 z-35 flex justify-between items-center backdrop-blur-md transition-colors duration-200 ${
         theme === "dark" ? "border-darkbg-border bg-slate-950/40" : "border-slate-200 bg-white/40"
       }`}>
-        {/* Lado Esquerdo: Voltar + Menu */}
-        <div className="flex items-center gap-2">
-          {screen !== "home" && (
+        {screen === "game" ? (
+          // Header Ultra-Compacto para Gameplay (Cópia da Referência)
+          <div className="w-full flex justify-between items-center select-none">
+            {/* Botão de Voltar */}
             <button
               onClick={() => {
                 soundManager.playSFX("click");
-                if (screen === "game") {
-                  if (confirm("Deseja mesmo sair do jogo em andamento?")) {
-                    setScreen("levels");
-                  }
-                } else {
-                  setScreen("home");
+                if (confirm("Deseja mesmo sair do jogo em andamento?")) {
+                  setScreen("levels");
                 }
               }}
-              className={`w-9 h-9 rounded-lg flex items-center justify-center border transition-all active:scale-95 ${
+              className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all active:scale-95 ${
                 theme === "dark"
                   ? "bg-slate-850/80 border-slate-700 text-slate-300 hover:text-white"
                   : "bg-white border-slate-250 text-slate-600 hover:text-slate-800 shadow-sm"
               }`}
               title="Voltar"
             >
-              <ArrowLeft size={16} />
+              <ArrowLeft size={15} />
             </button>
-          )}
 
-          <button
-            onClick={() => {
-              soundManager.playSFX("click");
-              if (screen === "game") setPauseOpen(true);
-              else setScreen("levels");
-            }}
-            className={`w-9 h-9 rounded-lg flex items-center justify-center border transition-all active:scale-95 ${
-              theme === "dark"
-                ? "bg-slate-850/80 border-slate-700 text-slate-300 hover:text-white"
-                : "bg-white border-slate-250 text-slate-600 hover:text-slate-800 shadow-sm"
-            }`}
-            title="Menu de Níveis"
-          >
-            <Menu size={16} />
-          </button>
-        </div>
+            {/* Centro: FASE XX */}
+            <h1 className={`font-black text-sm tracking-widest uppercase ${
+              theme === "dark" ? "text-slate-100" : "text-slate-800"
+            }`}>
+              FASE {currentLevelId}
+            </h1>
 
-        {/* Centro: Alternar Tema (Centralizado igual à referência) */}
-        <div className="flex items-center justify-center">
-          <button
-            onClick={() => {
-              soundManager.playSFX("click");
-              setTheme(theme === "dark" ? "light" : "dark");
-            }}
-            className={`w-9 h-9 rounded-lg flex items-center justify-center border transition-all duration-200 active:scale-95 ${
-              theme === "dark"
-                ? "bg-slate-850/80 border-slate-700 text-slate-300 hover:text-white"
-                : "bg-white border-slate-250 text-slate-600 hover:text-slate-800 shadow-sm"
-            }`}
-            title="Alternar Tema"
-          >
-            {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-          </button>
-        </div>
+            {/* Menu Hambúrguer (Pausa) */}
+            <button
+              onClick={() => {
+                soundManager.playSFX("click");
+                setPauseOpen(true);
+              }}
+              className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all active:scale-95 ${
+                theme === "dark"
+                  ? "bg-slate-850/80 border-slate-700 text-slate-300 hover:text-white"
+                  : "bg-white border-slate-250 text-slate-600 hover:text-slate-800 shadow-sm"
+              }`}
+              title="Menu / Pausa"
+            >
+              <Menu size={15} />
+            </button>
+          </div>
+        ) : (
+          // Header Padrão das Outras Telas
+          <>
+            {/* Lado Esquerdo: Voltar + Menu */}
+            <div className="flex items-center gap-2">
+              {screen !== "home" && (
+                <button
+                  onClick={() => {
+                    soundManager.playSFX("click");
+                    setScreen("home");
+                  }}
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center border transition-all active:scale-95 ${
+                    theme === "dark"
+                      ? "bg-slate-850/80 border-slate-700 text-slate-300 hover:text-white"
+                      : "bg-white border-slate-250 text-slate-600 hover:text-slate-800 shadow-sm"
+                  }`}
+                  title="Voltar"
+                >
+                  <ArrowLeft size={16} />
+                </button>
+              )}
 
-        {/* Lado Direito: Configurações + Moedas/Dicas */}
-        <div className="flex items-center gap-2">
-          {/* Configurações */}
-          <button
-            onClick={() => {
-              soundManager.playSFX("click");
-              setSettingsOpen(true);
-            }}
-            className={`w-9 h-9 rounded-lg flex items-center justify-center border transition-all active:scale-95 ${
-              theme === "dark"
-                ? "bg-slate-850/80 border-slate-700 text-slate-300 hover:text-white"
-                : "bg-white border-slate-250 text-slate-600 hover:text-slate-800 shadow-sm"
-            }`}
-            title="Configurações"
-          >
-            <SettingsIcon size={16} />
-          </button>
-
-          {/* Botão de Dica (Pílula Azul) */}
-          {screen === "game" && (
-            <div className="relative">
               <button
                 onClick={() => {
                   soundManager.playSFX("click");
-                  setHintMenuOpen(!hintMenuOpen);
+                  setScreen("levels");
                 }}
-                className="px-4 py-1.5 bg-[#2196f3] hover:bg-[#1976d2] text-white rounded-lg text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-md flex items-center gap-1.5"
+                className={`w-9 h-9 rounded-lg flex items-center justify-center border transition-all active:scale-95 ${
+                  theme === "dark"
+                    ? "bg-slate-850/80 border-slate-700 text-slate-300 hover:text-white"
+                    : "bg-white border-slate-250 text-slate-600 hover:text-slate-800 shadow-sm"
+                }`}
+                title="Menu de Níveis"
               >
-                <span>Dica</span>
-                <span className="text-[9px]">▼</span>
+                <Menu size={16} />
               </button>
-              
-              {hintMenuOpen && (
-                <div className={`absolute right-0 mt-2 w-48 rounded-xl border p-2 shadow-xl z-55 flex flex-col gap-1 backdrop-blur-md animate-fade-in ${
-                  theme === "dark" 
-                    ? "bg-slate-900/95 border-slate-700 text-slate-100" 
-                    : "bg-white/95 border-slate-200 text-slate-800"
-                }`}>
-                  <button
-                    onClick={() => {
-                      setHintMenuOpen(false);
-                      handleApplyHint("letter");
-                    }}
-                    className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${
-                      theme === "dark" ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-slate-100 text-slate-700"
-                    }`}
-                  >
-                    <span>💡 Revelar Letra</span>
-                    <span className="font-mono text-amber-500 font-extrabold">10 🪙</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setHintMenuOpen(false);
-                      handleApplyHint("half");
-                    }}
-                    className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${
-                      theme === "dark" ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-slate-100 text-slate-700"
-                    }`}
-                  >
-                    <span>⚡ Revelar Metade</span>
-                    <span className="font-mono text-amber-500 font-extrabold">30 🪙</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setHintMenuOpen(false);
-                      handleApplyHint("explain");
-                    }}
-                    className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${
-                      theme === "dark" ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-slate-100 text-slate-700"
-                    }`}
-                  >
-                    <span>📖 Aula Rápida</span>
-                    <span className="font-mono text-amber-500 font-extrabold">5 🪙</span>
-                  </button>
-                  <div className={`h-px my-1 ${theme === "dark" ? "bg-slate-800" : "bg-slate-100"}`} />
-                  <button
-                    onClick={() => {
-                      setHintMenuOpen(false);
-                      if (confirm("Deseja realmente limpar todas as palavras digitadas nesta fase?")) {
-                        soundManager.playSFX("click");
-                        setInputs({});
-                        setSolvedWords([]);
-                        setPoolLetters((prev) => prev.map((l) => ({ ...l, usedInCell: null })));
-                      }
-                    }}
-                    className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-red-400 transition-colors ${
-                      theme === "dark" ? "hover:bg-slate-850" : "hover:bg-red-50/50"
-                    }`}
-                  >
-                    <span>🔄 Reiniciar Grade</span>
-                    <span className="font-semibold text-slate-400">Grátis</span>
-                  </button>
-                </div>
-              )}
             </div>
-          )}
-        </div>
+
+            {/* Centro: Alternar Tema */}
+            <div className="flex items-center justify-center">
+              <button
+                onClick={() => {
+                  soundManager.playSFX("click");
+                  setTheme(theme === "dark" ? "light" : "dark");
+                }}
+                className={`w-9 h-9 rounded-lg flex items-center justify-center border transition-all duration-200 active:scale-95 ${
+                  theme === "dark"
+                    ? "bg-slate-850/80 border-slate-700 text-slate-300 hover:text-white"
+                    : "bg-white border-slate-250 text-slate-600 hover:text-slate-800 shadow-sm"
+                }`}
+                title="Alternar Tema"
+              >
+                {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+              </button>
+            </div>
+
+            {/* Lado Direito: Configurações */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  soundManager.playSFX("click");
+                  setSettingsOpen(true);
+                }}
+                className={`w-9 h-9 rounded-lg flex items-center justify-center border transition-all active:scale-95 ${
+                  theme === "dark"
+                    ? "bg-slate-850/80 border-slate-700 text-slate-300 hover:text-white"
+                    : "bg-white border-slate-250 text-slate-600 hover:text-slate-800 shadow-sm"
+                }`}
+                title="Configurações"
+              >
+                <SettingsIcon size={16} />
+              </button>
+            </div>
+          </>
+        )}
       </header>
 
       {/* CONTEÚDO PRINCIPAL COM TRANSIÇÕES */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 z-10 relative flex flex-col justify-center">
+      <main className={`flex-1 min-h-0 w-full mx-auto relative flex flex-col overflow-hidden ${
+        screen === "game" ? "p-0" : "p-4 md:p-6"
+      }`}>
         {/* TOASTS DE CONQUISTAS */}
         <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
           {toasts.map((t) => (
