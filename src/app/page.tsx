@@ -1095,7 +1095,7 @@ export default function HomeRoot() {
         {screen === "game" && currentLevelData && currentLevelId && (
           <div className="flex flex-col w-full h-[calc(100vh-60px)] justify-between overflow-hidden">
             {/* 1. Tabuleiro (Preenche o espaço restante) */}
-            <div className={`flex-1 min-h-0 w-full relative ${
+            <div className={`flex-1 min-h-0 w-full relative flex flex-col ${
               theme === "dark" ? "bg-slate-950" : "bg-slate-50"
             }`}>
               <CrosswordBoard
