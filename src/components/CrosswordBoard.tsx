@@ -137,10 +137,10 @@ export default function CrosswordBoard({
           style={{
             gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`,
           }}
-          className={`grid gap-1.5 p-3 rounded-2xl select-none transition-all duration-300 shadow-md ${
+          className={`grid gap-[1px] p-[1.5px] rounded-lg select-none transition-all duration-300 shadow-md ${
             theme === "dark"
-              ? "bg-slate-900 border border-slate-800"
-              : "bg-white border border-slate-200"
+              ? "bg-slate-950 border border-slate-900"
+              : "bg-slate-900 border border-slate-900"
           }`}
         >
           {data.grid.map((row, y) =>
@@ -150,7 +150,7 @@ export default function CrosswordBoard({
                    <div
                      key={`empty-${x}-${y}`}
                      style={{ width: `${cellSize}px`, height: `${cellSize}px` }}
-                     className="bg-transparent"
+                     className={theme === "dark" ? "bg-slate-950" : "bg-slate-900"}
                    />
                  );
                }
@@ -170,24 +170,24 @@ export default function CrosswordBoard({
                    key={`cell-${x}-${y}`}
                    onClick={() => handleCellClick(x, y)}
                    style={{ width: `${cellSize}px`, height: `${cellSize}px` }}
-                   className={`relative rounded-lg border transition-all duration-150 flex items-center justify-center cursor-pointer ${
+                   className={`relative transition-all duration-150 flex items-center justify-center cursor-pointer ${
                      isCellSolved
                        ? theme === "dark"
-                         ? "bg-emerald-500/20 border-emerald-500 text-emerald-450 font-extrabold correct-pulse"
-                         : "bg-emerald-50 border-emerald-500 text-emerald-600 font-extrabold correct-pulse"
+                         ? "bg-emerald-500/20 text-emerald-450 font-extrabold correct-pulse"
+                         : "bg-emerald-100 text-emerald-700 font-extrabold correct-pulse"
                        : isCellIncorrect
                        ? theme === "dark"
-                         ? "bg-red-500/25 border-red-500 text-red-400"
-                         : "bg-red-50 border-red-500 text-red-600"
+                         ? "bg-red-500/25 text-red-400"
+                         : "bg-red-100 text-red-700"
                        : isFocused
-                       ? "bg-[#ffee58] border-[#fbc02d] text-slate-900 shadow-md ring-2 ring-[#ffee58]/55 scale-105 z-10"
+                       ? "bg-[#ffee58] text-slate-900 shadow-md ring-2 ring-[#ffee58]/55 scale-105 z-10 rounded-sm"
                        : inActiveWord
                        ? theme === "dark"
-                         ? "bg-[#0d47a1]/50 border-[#1565c0]/50 text-slate-100"
-                         : "bg-[#bbdefb] border-[#90caf9] text-slate-900"
+                         ? "bg-[#0d47a1]/50 text-slate-100"
+                         : "bg-[#bbdefb] text-slate-900"
                        : theme === "dark"
-                       ? "bg-slate-800 border-slate-700 text-slate-100 hover:border-slate-500"
-                       : "bg-white border-slate-300 text-slate-900 hover:border-slate-400"
+                       ? "bg-slate-800 text-slate-100 hover:bg-slate-750"
+                       : "bg-white text-slate-900 hover:bg-slate-50"
                    }`}
                  >
                   {/* Badge Direcional Horizontal (Esquerda) */}
