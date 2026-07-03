@@ -1118,7 +1118,7 @@ export default function HomeRoot() {
               {/* Slots de Resposta (Preview da Palavra Ativa) */}
               {activeWord && (
                 <div className="w-full flex flex-col items-center gap-1.5 py-1">
-                  <div className="flex gap-1 flex-wrap justify-center w-full">
+                  <div className="flex gap-1.5 flex-wrap justify-center w-full">
                     {activeWord.word.split("").map((_, i) => {
                       const cx = activeWord.x + (activeWord.dir === "H" ? i : 0);
                       const cy = activeWord.y + (activeWord.dir === "V" ? i : 0);
@@ -1145,7 +1145,7 @@ export default function HomeRoot() {
                             isCellSolved
                               ? "bg-emerald-500/20 border-emerald-500 text-emerald-400"
                               : isFocused
-                              ? "bg-dentist-500 border-dentist-500 text-white shadow-md ring-2 ring-dentist-500/35 scale-105"
+                              ? "bg-[#ffee58] border-[#fbc02d] text-slate-900 shadow-md ring-2 ring-[#ffee58]/35 scale-105"
                               : theme === "dark"
                               ? "bg-slate-800 border-slate-700 text-slate-100 hover:border-slate-500"
                               : "bg-white border-slate-200 text-slate-900 shadow-md hover:border-slate-350"
@@ -1160,7 +1160,7 @@ export default function HomeRoot() {
               )}
 
               {/* Banco de Letras Embaralhadas (Anagrama) */}
-              <div className={`w-full flex flex-col gap-3.5 p-4 rounded-3xl border shadow-md transition-colors ${
+              <div className={`w-full flex flex-col gap-3 p-3.5 rounded-3xl border shadow-md transition-colors ${
                 theme === "dark" ? "bg-slate-900/50 border-darkbg-border" : "bg-slate-200/40 border-slate-200"
               }`}>
                 <div className="flex justify-between items-center px-1">
@@ -1179,82 +1179,28 @@ export default function HomeRoot() {
                   </button>
                 </div>
 
-                {/* Duas Linhas do Banco de Letras (Cópia da Referência) */}
-                <div className="flex flex-col gap-2 w-full items-center">
-                  {/* Linha 1 */}
-                  <div className="flex gap-2 justify-center w-full">
-                    {poolLetters.slice(0, Math.ceil(poolLetters.length / 2)).map((letter) => {
-                      const isUsed = letter.usedInCell !== null;
-                      return (
-                        <button
-                          key={letter.id}
-                          onClick={() => handleSelectLetterFromPool(letter.id)}
-                          disabled={isUsed}
-                          className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl font-black text-base flex items-center justify-center transition-all duration-150 border ${
-                            isUsed
-                              ? theme === "dark"
-                                ? "bg-slate-950/40 border-slate-900 text-slate-700 opacity-20 cursor-not-allowed"
-                                : "bg-slate-300/20 border-slate-300 text-slate-400 opacity-20 cursor-not-allowed"
-                              : theme === "dark"
-                              ? "bg-slate-800 hover:bg-slate-700 text-slate-100 border-slate-600/80 shadow-md active:scale-90 hover:scale-105 active:bg-dentist-500 active:text-white"
-                              : "bg-white hover:bg-slate-50 text-slate-800 border-slate-300 shadow-md active:scale-90 hover:scale-105 active:bg-dentist-500 active:text-white"
-                          }`}
-                        >
-                          {letter.char}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Linha 2 */}
-                  <div className="flex gap-2 justify-center w-full">
-                    {poolLetters.slice(Math.ceil(poolLetters.length / 2)).map((letter) => {
-                      const isUsed = letter.usedInCell !== null;
-                      return (
-                        <button
-                          key={letter.id}
-                          onClick={() => handleSelectLetterFromPool(letter.id)}
-                          disabled={isUsed}
-                          className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl font-black text-base flex items-center justify-center transition-all duration-150 border ${
-                            isUsed
-                              ? theme === "dark"
-                                ? "bg-slate-950/40 border-slate-900 text-slate-700 opacity-20 cursor-not-allowed"
-                                : "bg-slate-300/20 border-slate-300 text-slate-400 opacity-20 cursor-not-allowed"
-                              : theme === "dark"
-                              ? "bg-slate-800 hover:bg-slate-700 text-slate-100 border-slate-600/80 shadow-md active:scale-90 hover:scale-105 active:bg-dentist-500 active:text-white"
-                              : "bg-white hover:bg-slate-50 text-slate-800 border-slate-300 shadow-md active:scale-90 hover:scale-105 active:bg-dentist-500 active:text-white"
-                          }`}
-                        >
-                          {letter.char}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Mascote Interativo de Dicas (CodyCross/Duolingo Style) */}
-              <div className={`p-3 w-full rounded-2xl border flex items-center gap-3 shadow-md ${
-                theme === "dark" 
-                  ? "glass-panel border-darkbg-border bg-gradient-to-tr from-slate-900/60 to-dentist-950/20" 
-                  : "bg-white border-slate-200 shadow-sm"
-              }`}>
-                <img
-                  src="/mascot.png"
-                  alt="Mascote"
-                  className="w-10 h-10 object-contain shrink-0 animate-bounce-slow"
-                />
-                <div className={`relative border p-2.5 rounded-xl text-left flex-1 ${
-                  theme === "dark" 
-                    ? "bg-slate-800/85 border-slate-700 text-slate-200" 
-                    : "bg-slate-50 border-slate-200 text-slate-700"
-                }`}>
-                  <div className={`absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent ${
-                    theme === "dark" ? "border-r-slate-800" : "border-r-slate-50"
-                  }`} />
-                  <p className="text-[10px] font-bold leading-normal">
-                    {mascotTip}
-                  </p>
+                <div className="flex flex-wrap gap-2 justify-center w-full max-h-[140px] overflow-y-auto py-1">
+                  {poolLetters.map((letter) => {
+                    const isUsed = letter.usedInCell !== null;
+                    return (
+                      <button
+                        key={letter.id}
+                        onClick={() => handleSelectLetterFromPool(letter.id)}
+                        disabled={isUsed}
+                        className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl font-black text-base flex items-center justify-center transition-all duration-150 border shrink-0 ${
+                          isUsed
+                            ? theme === "dark"
+                              ? "bg-slate-950/40 border-slate-900 text-slate-700 opacity-20 cursor-not-allowed"
+                              : "bg-slate-300/20 border-slate-300 text-slate-400 opacity-20 cursor-not-allowed"
+                            : theme === "dark"
+                            ? "bg-slate-800 hover:bg-slate-700 text-slate-100 border-slate-600/80 shadow-md active:scale-90 hover:scale-105 active:bg-[#2196f3] active:text-white"
+                            : "bg-white hover:bg-slate-50 text-slate-800 border-slate-300 shadow-md active:scale-90 hover:scale-105 active:bg-[#2196f3] active:text-white"
+                        }`}
+                      >
+                        {letter.char}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
