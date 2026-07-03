@@ -1093,68 +1093,11 @@ export default function HomeRoot() {
 
         {/* TELA DE GAMEPLAY ATIVA */}
         {screen === "game" && currentLevelData && currentLevelId && (
-          <div className="flex flex-col gap-3.5 w-full">
-            {/* Header Compacto da Fase */}
-            <div className={`glass-panel p-3 rounded-2xl border flex flex-col gap-2 shadow-sm ${
-              theme === "dark" ? "border-darkbg-border bg-slate-900/40" : "border-slate-200 bg-white/50"
-            }`}>
-              <div className="flex justify-between items-center w-full">
-                <div>
-                  <span className="text-[9px] text-dentist-500 font-black uppercase tracking-wider">
-                    Fase {currentLevelId} • {OdontoDatabase.find(l => l.id === currentLevelId)?.category}
-                  </span>
-                  <h3 className={`font-extrabold text-xs sm:text-sm leading-tight ${
-                    theme === "dark" ? "text-slate-100" : "text-slate-900"
-                  }`}>
-                    {OdontoDatabase.find(l => l.id === currentLevelId)?.title}
-                  </h3>
-                </div>
-
-                <div className="flex items-center gap-1.5">
-                  {/* Cronômetro */}
-                  <div className={`flex items-center gap-1 font-mono text-xs font-bold py-1 px-2.5 rounded-xl border ${
-                    theme === "dark" ? "bg-slate-800/60 border-slate-700/40" : "bg-white border-slate-200 text-slate-800 shadow-sm"
-                  }`}>
-                    <Clock size={12} className="text-amber-500 animate-pulse" />
-                    {Math.floor(timeSpent / 60).toString().padStart(2, "0")}:
-                    {(timeSpent % 60).toString().padStart(2, "0")}
-                  </div>
-
-                  {/* Moedas */}
-                  <div className={`flex items-center gap-1 text-xs font-bold py-1 px-2.5 rounded-xl border text-amber-505 ${
-                    theme === "dark" ? "bg-slate-800/60 border-slate-700/40" : "bg-white border-slate-200 text-amber-600 shadow-sm"
-                  }`}>
-                    <span>🪙</span>
-                    <span>{coins}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Linha Fina de Progresso de XP */}
-              <div className={`flex items-center gap-2.5 w-full px-2 py-1 rounded-xl border ${
-                theme === "dark" ? "bg-slate-800/20 border-slate-850/50" : "bg-slate-100/30 border-slate-200"
-              }`}>
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                  Nível {playerLevel}
-                </span>
-                <div className={`flex-1 h-1 rounded-full overflow-hidden ${
-                  theme === "dark" ? "bg-slate-950" : "bg-slate-200"
-                }`}>
-                  <div
-                    style={{ width: `${Math.min(100, (playerXP / xpNeeded) * 100)}%` }}
-                    className="h-full bg-gradient-to-r from-dentist-500 to-emerald-400 rounded-full transition-all duration-500"
-                  />
-                </div>
-                <span className="text-[8px] font-mono font-black text-slate-400">
-                  {Math.round((playerXP / xpNeeded) * 100)}%
-                </span>
-              </div>
-            </div>
-
+          <div className="flex flex-col gap-2 w-full h-[calc(100vh-65px)] justify-between overflow-hidden">
             {/* Conteúdo Centralizado Mobile-First */}
-            <div className="max-w-xl w-full mx-auto flex flex-col gap-3.5 items-center">
+            <div className="flex-1 w-full mx-auto flex flex-col gap-2.5 items-center justify-between h-full min-h-0">
               {/* Tabuleiro Físico */}
-              <div className={`glass-panel w-full rounded-3xl overflow-hidden border flex items-center justify-center p-3 h-[40vh] min-h-[250px] relative ${
+              <div className={`glass-panel w-full rounded-3xl overflow-hidden border flex-1 min-h-0 flex items-center justify-center p-3 relative ${
                 theme === "dark" ? "border-darkbg-border bg-slate-950/40" : "border-slate-250 bg-white/40"
               }`}>
                 <CrosswordBoard
@@ -1549,13 +1492,114 @@ export default function HomeRoot() {
         </div>
       )}
 
-      {/* MODAL PAUSA */}
+      {/* MODAL PAUSA / MENU */}
       {pauseOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass-panel p-6 rounded-2xl max-w-sm w-full border border-darkbg-border flex flex-col gap-4 text-center animate-fade-in">
-            <h3 className="font-extrabold text-slate-100 text-lg">Jogo Pausado</h3>
-            <p className="text-xs text-slate-400">O cronômetro está parado.</p>
+          <div className="glass-panel p-6 rounded-2xl max-w-sm w-full border border-darkbg-border flex flex-col gap-4 text-center animate-fade-in bg-slate-900 text-slate-100 shadow-2xl">
+            <div>
+              <h3 className="font-extrabold text-slate-100 text-lg">Jogo Pausado</h3>
+              <p className="text-xs text-slate-400">O cronômetro está parado.</p>
+            </div>
 
+            {/* Painel de Métricas e Perfil */}
+            <div className="border border-slate-700/50 p-3 rounded-xl bg-slate-950/40 flex flex-col gap-2 text-left text-xs">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-1.5">
+                <span className="text-slate-450 font-bold">🪙 Moedas:</span>
+                <span className="font-mono text-amber-400 font-extrabold">{coins}</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-800 pb-1.5">
+                <span className="text-slate-450 font-bold">⏱️ Tempo Decorrido:</span>
+                <span className="font-mono text-slate-200 font-extrabold">
+                  {Math.floor(timeSpent / 60).toString().padStart(2, "0")}:
+                  {(timeSpent % 60).toString().padStart(2, "0")}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <div className="flex justify-between items-center text-[10px] font-black text-slate-400 uppercase">
+                  <span>Nível {playerLevel}</span>
+                  <span>{playerXP} / {xpNeeded} XP</span>
+                </div>
+                <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                  <div
+                    style={{ width: `${Math.min(100, (playerXP / xpNeeded) * 100)}%` }}
+                    className="h-full bg-gradient-to-r from-dentist-500 to-[#2196f3] rounded-full"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Menu de Dicas e Ações de Ajuda (Compráveis) */}
+            <div className="border border-slate-700/50 p-3 rounded-xl bg-slate-950/40 flex flex-col gap-1.5 text-left">
+              <span className="text-[9px] font-black uppercase text-dentist-400 tracking-wider mb-1 block">Dicas & Ajuda</span>
+              <button
+                onClick={() => {
+                  setPauseOpen(false);
+                  handleApplyHint("letter");
+                }}
+                className="flex items-center justify-between py-1 px-2 hover:bg-slate-800/60 rounded-lg text-xs font-bold text-slate-200 transition-colors"
+              >
+                <span>💡 Revelar Letra</span>
+                <span className="font-mono text-amber-505 font-black">10 🪙</span>
+              </button>
+              <button
+                onClick={() => {
+                  setPauseOpen(false);
+                  handleApplyHint("half");
+                }}
+                className="flex items-center justify-between py-1 px-2 hover:bg-slate-800/60 rounded-lg text-xs font-bold text-slate-200 transition-colors"
+              >
+                <span>⚡ Revelar Metade</span>
+                <span className="font-mono text-amber-505 font-black">30 🪙</span>
+              </button>
+              <button
+                onClick={() => {
+                  setPauseOpen(false);
+                  handleApplyHint("explain");
+                }}
+                className="flex items-center justify-between py-1 px-2 hover:bg-slate-800/60 rounded-lg text-xs font-bold text-slate-200 transition-colors"
+              >
+                <span>📖 Aula Rápida</span>
+                <span className="font-mono text-amber-505 font-black">5 🪙</span>
+              </button>
+            </div>
+
+            {/* Controles de Áudio Rápidos */}
+            <div className="flex gap-2 justify-center">
+              <button
+                onClick={() => {
+                  const nextVal = !sfxOn;
+                  setSfxOn(nextVal);
+                  soundManager.isSFXEnabled = nextVal;
+                  localStorage.setItem("odontocross_settings", JSON.stringify({ musicOn, sfxOn: nextVal }));
+                  soundManager.playSFX("click");
+                }}
+                className={`flex-1 py-2 px-3 border rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-colors ${
+                  sfxOn 
+                    ? "bg-[#2196f3] text-white border-[#2196f3]" 
+                    : "bg-slate-850 border-slate-700 text-slate-400"
+                }`}
+              >
+                {sfxOn ? <Volume2 size={14} /> : <VolumeX size={14} />} Sons
+              </button>
+              <button
+                onClick={() => {
+                  const nextVal = !musicOn;
+                  setMusicOn(nextVal);
+                  soundManager.toggleMusic(nextVal && screen !== "home");
+                  localStorage.setItem("odontocross_settings", JSON.stringify({ musicOn: nextVal, sfxOn }));
+                  soundManager.playSFX("click");
+                }}
+                className={`flex-1 py-2 px-3 border rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-colors ${
+                  musicOn 
+                    ? "bg-[#2196f3] text-white border-[#2196f3]" 
+                    : "bg-slate-850 border-slate-700 text-slate-400"
+                }`}
+              >
+                <Music size={14} /> Música
+              </button>
+            </div>
+
+            {/* Ações do Jogo */}
             <div className="flex flex-col gap-2 mt-2">
               <button
                 onClick={() => {
@@ -1580,11 +1624,11 @@ export default function HomeRoot() {
                 onClick={() => {
                   soundManager.playSFX("click");
                   setPauseOpen(false);
-                  setScreen("home");
+                  setScreen("levels");
                 }}
-                className="w-full h-11 bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 font-bold rounded-xl text-sm"
+                className="w-full h-11 bg-slate-850 hover:bg-slate-800 text-red-400 border border-slate-700 font-bold rounded-xl text-sm"
               >
-                Ir para o Menu Inicial
+                Sair da Fase
               </button>
             </div>
           </div>
