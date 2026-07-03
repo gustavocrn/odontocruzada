@@ -48,10 +48,14 @@ export default function CrosswordBoard({
 
   // Monitora tamanho do contêiner para aplicar zoom/escala automática na grade (Largura e Altura)
   useEffect(() => {
+    if (!containerRef.current) return;
+
     const calculateScale = () => {
-      if (!containerRef.current) return;
-      const containerWidth = containerRef.current.clientWidth;
-      const containerHeight = containerRef.current.clientHeight;
+      const container = containerRef.current;
+      if (!container) return;
+      
+      const containerWidth = container.clientWidth || 360;
+      const containerHeight = container.clientHeight || 300;
       
       const cellWidth = 44; // Tamanho base da célula + gap
       const boardWidth = data.width * cellWidth + 24;
@@ -65,9 +69,14 @@ export default function CrosswordBoard({
       setScale(finalScale);
     };
 
+    const observer = new ResizeObserver(() => {
+      calculateScale();
+    });
+    
+    observer.observe(containerRef.current);
     calculateScale();
-    window.addEventListener("resize", calculateScale);
-    return () => window.removeEventListener("resize", calculateScale);
+
+    return () => observer.disconnect();
   }, [data.width, data.height]);
 
   // Função auxiliar para checar se a célula faz parte da palavra selecionada

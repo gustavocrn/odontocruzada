@@ -323,7 +323,7 @@ export default function HomeRoot() {
     // Se a célula pertence a uma palavra já resolvida, não permite digitar
     const cellInfo = currentLevelData.grid[y][x];
     if (!cellInfo) return;
-    const isLocked = cellInfo.words.some((num) => solvedWords.includes(num));
+    const isLocked = cellInfo.words?.some((num) => solvedWords.includes(num)) || false;
     if (isLocked) return;
 
     // Acha a letra no pool
@@ -357,8 +357,17 @@ export default function HomeRoot() {
     // Checa se completou a palavra
     checkWordCompleteness(activeWord, newInputs);
 
-    // Avança foco
-    const next = getAdjacentCell(x, y, 1);
+    // Avança foco pulando células já resolvidas/travadas
+    let next = getAdjacentCell(x, y, 1);
+    while (next) {
+      const nextCellInfo = currentLevelData.grid[next.y]?.[next.x];
+      const isNextSolved = nextCellInfo?.words?.some((num) => solvedWords.includes(num)) || false;
+      if (isNextSolved) {
+        next = getAdjacentCell(next.x, next.y, 1);
+      } else {
+        break;
+      }
+    }
     if (next) {
       setFocusedCell(next);
     }
@@ -1086,7 +1095,7 @@ export default function HomeRoot() {
         {screen === "game" && currentLevelData && currentLevelId && (
           <div className="flex flex-col w-full h-[calc(100vh-60px)] justify-between overflow-hidden">
             {/* 1. Tabuleiro (Preenche o espaço restante) */}
-            <div className={`flex-1 min-h-0 w-full flex items-center justify-center p-3 relative ${
+            <div className={`flex-1 min-h-0 w-full relative ${
               theme === "dark" ? "bg-slate-950" : "bg-slate-50"
             }`}>
               <CrosswordBoard
