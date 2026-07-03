@@ -718,22 +718,44 @@ export default function HomeRoot() {
     const costs = { letter: 10, half: 30, explain: 5, solve: 50 };
     const cost = costs[type];
 
-    if (coins < cost) {
-      triggerToast("Moedas insuficientes!", "🪙");
-      soundManager.playSFX("error");
-      return;
-    }
-
-    const nextCoins = coins - cost;
-    setCoins(nextCoins);
-    saveProgress({ coins: nextCoins });
-
     if (type === "letter") {
-      // Revela a letra atual focada
-      if (!focusedCell) return;
-      const { x, y } = focusedCell;
-      const cellInfo = currentLevelData.grid[y][x];
-      if (!cellInfo || !cellInfo.words.includes(activeWord.number)) return;
+      let targetCell = focusedCell;
+
+      // Se não há célula focada, acha a primeira célula em branco da palavra ativa
+      if (!targetCell) {
+        for (let i = 0; i < activeWord.word.length; i++) {
+          const cx = activeWord.x + (activeWord.dir === "H" ? i : 0);
+          const cy = activeWord.y + (activeWord.dir === "V" ? i : 0);
+          const key = `${cx},${cy}`;
+          const isSolved = currentLevelData.grid[cy]?.[cx]?.words?.some((num) => solvedWords.includes(num)) || false;
+          if (!isSolved && !inputs[key]) {
+            targetCell = { x: cx, y: cy };
+            setFocusedCell(targetCell);
+            break;
+          }
+        }
+      }
+
+      if (!targetCell) {
+        triggerToast("Selecione uma palavra com espaços em branco!", "💡");
+        soundManager.playSFX("error");
+        return;
+      }
+
+      if (coins < cost) {
+        triggerToast("Moedas insuficientes!", "🪙");
+        soundManager.playSFX("error");
+        return;
+      }
+
+      // Dedução segura de moedas após termos certeza de que há uma célula elegível
+      const nextCoins = coins - cost;
+      setCoins(nextCoins);
+      saveProgress({ coins: nextCoins });
+
+      const { x, y } = targetCell;
+      const cellInfo = currentLevelData.grid[y]?.[x];
+      if (!cellInfo || !cellInfo.words?.includes(activeWord.number)) return;
 
       const charIdx = activeWord.dir === "H" ? x - activeWord.x : y - activeWord.y;
       const correctChar = generatorRef.current.normalize(activeWord.word)[charIdx];
@@ -750,18 +772,30 @@ export default function HomeRoot() {
 
         checkWordCompleteness(activeWord, nextInputs);
       }
-    } else if (type === "half") {
-      // Revela metade da palavra (posições pares)
-      soundManager.playSFX("click");
-      const nextInputs = { ...inputs };
-      let changed = false;
+    } else {
+      // Outros tipos de dicas (half, explain, solve)
+      if (coins < cost) {
+        triggerToast("Moedas insuficientes!", "🪙");
+        soundManager.playSFX("error");
+        return;
+      }
 
-      for (let i = 0; i < activeWord.word.length; i++) {
-        if (i % 2 === 0) {
-          const cx = activeWord.x + (activeWord.dir === "H" ? i : 0);
-          const cy = activeWord.y + (activeWord.dir === "V" ? i : 0);
-          const correctChar = generatorRef.current.normalize(activeWord.word)[i];
-          const key = `${cx},${cy}`;
+      const nextCoins = coins - cost;
+      setCoins(nextCoins);
+      saveProgress({ coins: nextCoins });
+
+      if (type === "half") {
+        // Revela metade da palavra (posições pares)
+        soundManager.playSFX("click");
+        const nextInputs = { ...inputs };
+        let changed = false;
+
+        for (let i = 0; i < activeWord.word.length; i++) {
+          if (i % 2 === 0) {
+            const cx = activeWord.x + (activeWord.dir === "H" ? i : 0);
+            const cy = activeWord.y + (activeWord.dir === "V" ? i : 0);
+            const correctChar = generatorRef.current.normalize(activeWord.word)[i];
+            const key = `${cx},${cy}`;
 
           if (inputs[key] !== correctChar) {
             nextInputs[key] = correctChar;
@@ -823,7 +857,8 @@ export default function HomeRoot() {
         checkOverallCompletion(nextSolved);
       }
     }
-  };
+  }
+};
 
   const getCluesOfDirection = (dir: "H" | "V") => {
     if (!currentLevelData) return [];
@@ -904,9 +939,9 @@ export default function HomeRoot() {
               FASE {currentLevelId}
             </h1>
 
-            {/* Lado Direito: Moedas + Botão Dica (Com Dropdown) */}
-            <div className="flex items-center gap-2 relative">
-              <div className={`text-xs font-black px-2 py-1.5 rounded-lg border font-mono ${
+            {/* Lado Direito: Moedas + Botão Dica */}
+            <div className="flex items-center gap-2">
+              <div className={`text-xs font-black px-2.5 py-1.5 rounded-lg border font-mono select-none ${
                 theme === "dark"
                   ? "bg-slate-850 border-slate-700 text-amber-400"
                   : "bg-white border-slate-250 text-amber-600 shadow-sm"
@@ -914,82 +949,15 @@ export default function HomeRoot() {
                 🪙 {coins}
               </div>
 
-              <div className="relative">
-                <button
-                  onClick={() => {
-                    soundManager.playSFX("click");
-                    setHintMenuOpen(!hintMenuOpen);
-                  }}
-                  className="h-9 px-3.5 bg-[#2196f3] hover:bg-[#1976d2] text-white rounded-lg text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-md flex items-center gap-1.5"
-                >
-                  <span>Dica</span>
-                  <span className="text-[9px]">▼</span>
-                </button>
-
-                {/* Dropdown de Dicas */}
-                {hintMenuOpen && (
-                  <div className={`absolute right-0 mt-2 w-48 rounded-xl border p-2 shadow-xl z-55 flex flex-col gap-1 backdrop-blur-md animate-fade-in ${
-                    theme === "dark" 
-                      ? "bg-slate-900/95 border-slate-700 text-slate-100" 
-                      : "bg-white/95 border-slate-200 text-slate-800"
-                  }`}>
-                    <button
-                      onClick={() => {
-                        setHintMenuOpen(false);
-                        handleApplyHint("letter");
-                      }}
-                      className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${
-                        theme === "dark" ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-slate-100 text-slate-700"
-                      }`}
-                    >
-                      <span>💡 Revelar Letra</span>
-                      <span className="font-mono text-amber-500 font-extrabold">10 🪙</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setHintMenuOpen(false);
-                        handleApplyHint("half");
-                      }}
-                      className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${
-                        theme === "dark" ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-slate-100 text-slate-700"
-                      }`}
-                    >
-                      <span>⚡ Revelar Metade</span>
-                      <span className="font-mono text-amber-500 font-extrabold">30 🪙</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setHintMenuOpen(false);
-                        handleApplyHint("explain");
-                      }}
-                      className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${
-                        theme === "dark" ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-slate-100 text-slate-700"
-                      }`}
-                    >
-                      <span>📖 Aula Rápida</span>
-                      <span className="font-mono text-amber-500 font-extrabold">5 🪙</span>
-                    </button>
-                    <div className={`h-px my-1 ${theme === "dark" ? "bg-slate-800" : "bg-slate-100"}`} />
-                    <button
-                      onClick={() => {
-                        setHintMenuOpen(false);
-                        if (confirm("Deseja realmente limpar todas as palavras digitadas nesta fase?")) {
-                          soundManager.playSFX("click");
-                          setInputs({});
-                          setSolvedWords([]);
-                          setPoolLetters((prev) => prev.map((l) => ({ ...l, usedInCell: null })));
-                        }
-                      }}
-                      className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-red-400 transition-colors ${
-                        theme === "dark" ? "hover:bg-slate-850" : "hover:bg-red-50/50"
-                      }`}
-                    >
-                      <span>🔄 Reiniciar Grade</span>
-                      <span className="font-semibold text-slate-400">Grátis</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+              <button
+                onClick={() => {
+                  handleApplyHint("letter");
+                }}
+                className="h-9 px-3.5 bg-[#2196f3] hover:bg-[#1976d2] text-white rounded-lg text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-md flex items-center gap-1.5"
+              >
+                <span>💡 Dica</span>
+                <span className="text-[9px] opacity-75 font-mono">(10)</span>
+              </button>
             </div>
           </div>
         ) : (
