@@ -214,6 +214,31 @@ export default function HomeRoot() {
 
   const xpNeeded = 1000 + (playerLevel - 1) * 300;
 
+  // --- RETORNA A PRIMEIRA CÉLULA VAZIA OU NÃO RESOLVIDA DE UMA PALAVRA ---
+  const getFirstEmptyCellOfWord = (
+    word: PlacedWord,
+    currentInputs: Record<string, string>,
+    currentSolved: number[],
+    gridData: any
+  ) => {
+    if (!gridData) return { x: word.x, y: word.y };
+    for (let i = 0; i < word.word.length; i++) {
+      const cx = word.x + (word.dir === "H" ? i : 0);
+      const cy = word.y + (word.dir === "V" ? i : 0);
+      const key = `${cx},${cy}`;
+      const cellInfo = gridData.grid[cy]?.[cx];
+      const isSolved = cellInfo?.words?.some((num: number) => currentSolved.includes(num)) || false;
+      const val = currentInputs[key] || "";
+      
+      // Se a célula não está resolvida nem preenchida, retorna esta posição
+      if (!isSolved && val === "") {
+        return { x: cx, y: cy };
+      }
+    }
+    // Se todas estiverem preenchidas/resolvidas, retorna a primeira posição da palavra
+    return { x: word.x, y: word.y };
+  };
+
   // --- INICIA UMA FASE ---
   const handleStartLevel = (levelId: number) => {
     const level = OdontoDatabase.find((l) => l.id === levelId);
@@ -247,7 +272,8 @@ export default function HomeRoot() {
           // Seleciona a primeira palavra não resolvida
           const firstUnsolved = generated.words.find(w => !activeGame.solvedWords.includes(w.number)) || generated.words[0];
           setActiveWord(firstUnsolved);
-          setFocusedCell({ x: firstUnsolved.x, y: firstUnsolved.y });
+          const cellToFocus = getFirstEmptyCellOfWord(firstUnsolved, activeGame.inputs || {}, activeGame.solvedWords || [], generated);
+          setFocusedCell(cellToFocus);
           return;
         }
       } catch (e) {
@@ -271,7 +297,8 @@ export default function HomeRoot() {
     // Seleciona a primeira palavra
     if (generated.words.length > 0) {
       setActiveWord(generated.words[0]);
-      setFocusedCell({ x: generated.words[0].x, y: generated.words[0].y });
+      const cellToFocus = getFirstEmptyCellOfWord(generated.words[0], {}, [], generated);
+      setFocusedCell(cellToFocus);
     }
   };
 
@@ -483,7 +510,8 @@ export default function HomeRoot() {
     soundManager.playSFX("click");
     const nextWord = currentLevelData.words[nextIdx];
     setActiveWord(nextWord);
-    setFocusedCell({ x: nextWord.x, y: nextWord.y });
+    const cellToFocus = getFirstEmptyCellOfWord(nextWord, inputs, solvedWords, currentLevelData);
+    setFocusedCell(cellToFocus);
   };
 
   // Verifica preenchimento completo de uma palavra específica
@@ -524,7 +552,8 @@ export default function HomeRoot() {
           if (nextUnsolvedWord) {
             setTimeout(() => {
               setActiveWord(nextUnsolvedWord);
-              setFocusedCell({ x: nextUnsolvedWord.x, y: nextUnsolvedWord.y });
+              const cellToFocus = getFirstEmptyCellOfWord(nextUnsolvedWord, inputs, nextSolved, currentLevelData);
+              setFocusedCell(cellToFocus);
             }, 300);
           }
         }
