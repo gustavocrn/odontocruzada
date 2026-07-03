@@ -30,6 +30,7 @@ import {
   Brain,
   Trophy,
   Lightbulb,
+  Sparkles,
 } from "lucide-react";
 
 import { OdontoDatabase, Level } from "@/data/database";
@@ -39,7 +40,6 @@ import { soundManager } from "@/utils/sound";
 // Componentes locais
 import LevelGrid from "@/components/LevelGrid";
 import CrosswordBoard from "@/components/CrosswordBoard";
-import VirtualKeyboard from "@/components/VirtualKeyboard";
 import ClueItem from "@/components/ClueItem";
 import AchievementsPanel from "@/components/AchievementsPanel";
 import StatsPanel from "@/components/StatsPanel";
@@ -96,6 +96,8 @@ export default function HomeRoot() {
   const [focusedCell, setFocusedCell] = useState<{ x: number; y: number } | null>(null);
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [solvedWords, setSolvedWords] = useState<number[]>([]);
+  const [incorrectWords, setIncorrectWords] = useState<number[]>([]);
+  const [poolLetters, setPoolLetters] = useState<{ id: string; char: string; usedInCell: string | null }[]>([]);
   const [timeSpent, setTimeSpent] = useState(0);
   const [hintsPenaltyPoints, setHintsPenaltyPoints] = useState(0);
   const [hintsUsedCount, setHintsUsedCount] = useState(0);
@@ -223,6 +225,7 @@ export default function HomeRoot() {
     setHintsUsedCount(0);
     setPerfectRun(true);
     setSolvedWords([]);
+    setIncorrectWords([]);
     setInputs({});
     setFocusedCell(null);
     setExplanationActive(false);
@@ -242,46 +245,142 @@ export default function HomeRoot() {
       setActiveWord(generated.words[0]);
       setFocusedCell({ x: generated.words[0].x, y: generated.words[0].y });
     }
+
+    // --- GERA O BANCO DE LETRAS (ANAGRAMA) ---
+    // Mapeia letras únicas necessárias (células não vazias do grid)
+    const neededLetters: string[] = [];
+    generated.grid.forEach((row) => {
+      row.forEach((cell) => {
+        if (cell && cell.char) {
+          neededLetters.push(cell.char.toUpperCase());
+        }
+      });
+    });
+
+    // Quantidade de letras extras por dificuldade
+    let extraCount = 3;
+    if (levelId > 25) extraCount = 8;
+    else if (levelId > 10) extraCount = 5;
+
+    const noisePool = ["A", "E", "O", "S", "R", "T", "I", "M", "C", "P", "L", "U", "N", "D"];
+    const extraLetters: string[] = [];
+    for (let i = 0; i < extraCount; i++) {
+      const randChar = noisePool[Math.floor(Math.random() * noisePool.length)];
+      extraLetters.push(randChar);
+    }
+
+    // Combina e gera identificadores únicos
+    const finalSet = [...neededLetters, ...extraLetters];
+    // Embaralha
+    for (let i = finalSet.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [finalSet[i], finalSet[j]] = [finalSet[j], finalSet[i]];
+    }
+
+    const pool = finalSet.map((char, index) => ({
+      id: `letter-${index}-${Math.random().toString(36).substr(2, 4)}`,
+      char,
+      usedInCell: null as string | null,
+    }));
+
+    setPoolLetters(pool);
   };
 
-  // --- TRATA O INPUT DO TECLADO VIRTUAL OU FÍSICO ---
-  const handleKeyboardInput = (key: string) => {
+  // --- TRATA A SELEÇÃO DE UMA LETRA DO BANCO DE LETRAS (ANAGRAMA) ---
+  const handleSelectLetterFromPool = (letterId: string) => {
     if (!focusedCell || !currentLevelData || !activeWord) return;
-
     const { x, y } = focusedCell;
     const cellKey = `${x},${y}`;
 
-    if (key === "BACKSPACE") {
-      // Limpa célula focada
-      if (inputs[cellKey] && inputs[cellKey] !== "") {
-        const newInputs = { ...inputs, [cellKey]: "" };
-        setInputs(newInputs);
-      } else {
-        // Move foco para trás
-        const prev = getAdjacentCell(x, y, -1);
-        if (prev) {
-          setFocusedCell(prev);
-          setInputs({ ...inputs, [`${prev.x},${prev.y}`]: "" });
-        }
-      }
-    } else if (key === "ENTER") {
-      // Pula para a próxima palavra
-      const idx = currentLevelData.words.findIndex((w) => w.number === activeWord.number);
-      const nextIdx = (idx + 1) % currentLevelData.words.length;
-      const nextWord = currentLevelData.words[nextIdx];
-      setActiveWord(nextWord);
-      setFocusedCell({ x: nextWord.x, y: nextWord.y });
-    } else {
-      // Insere caractere e avança
-      const newInputs = { ...inputs, [cellKey]: key.toUpperCase() };
-      setInputs(newInputs);
+    // Se a célula pertence a uma palavra já resolvida, não permite digitar
+    const cellInfo = currentLevelData.grid[y][x];
+    if (!cellInfo) return;
+    const isLocked = cellInfo.words.some((num) => solvedWords.includes(num));
+    if (isLocked) return;
 
-      // Checa se completou a palavra
-      checkWordCompleteness(activeWord, newInputs);
+    // Acha a letra no pool
+    const letterIndex = poolLetters.findIndex((l) => l.id === letterId);
+    if (letterIndex === -1) return;
+    const letter = poolLetters[letterIndex];
+    if (letter.usedInCell) return; // Letra já está em uso
 
-      const next = getAdjacentCell(x, y, 1);
-      if (next) setFocusedCell(next);
+    soundManager.playSFX("click");
+
+    // Copia o pool e marca como usada na célula focada
+    const nextPool = [...poolLetters];
+
+    // Se a célula já tinha uma letra inserida anteriormente, devolve ela ao pool primeiro!
+    const previousLetterIdx = nextPool.findIndex((l) => l.usedInCell === cellKey);
+    if (previousLetterIdx !== -1) {
+      nextPool[previousLetterIdx] = { ...nextPool[previousLetterIdx], usedInCell: null };
     }
+
+    // Marca a nova letra como usada
+    nextPool[letterIndex] = { ...nextPool[letterIndex], usedInCell: cellKey };
+    setPoolLetters(nextPool);
+
+    // Atualiza os inputs
+    const newInputs = { ...inputs, [cellKey]: letter.char };
+    setInputs(newInputs);
+
+    // Remove do incorreto se o jogador está alterando
+    setIncorrectWords((prev) => prev.filter((id) => id !== activeWord.number));
+
+    // Checa se completou a palavra
+    checkWordCompleteness(activeWord, newInputs);
+
+    // Avança foco
+    const next = getAdjacentCell(x, y, 1);
+    if (next) {
+      setFocusedCell(next);
+    }
+  };
+
+  // --- DEVOLVE A LETRA DA CÉLULA DE VOLTA AO BANCO DE LETRAS ---
+  const handleReturnLetterToPool = (x: number, y: number) => {
+    if (!currentLevelData) return;
+    const cellKey = `${x},${y}`;
+
+    // Se pertence a alguma palavra já resolvida, bloqueia
+    const cellInfo = currentLevelData.grid[y][x];
+    if (!cellInfo) return;
+    if (cellInfo.words.some((num) => solvedWords.includes(num))) return;
+
+    soundManager.playSFX("click");
+
+    // Limpa a célula nos inputs
+    const newInputs = { ...inputs };
+    delete newInputs[cellKey];
+    setInputs(newInputs);
+
+    // Remove do incorreto se o jogador apagou uma letra da palavra ativa
+    if (activeWord) {
+      setIncorrectWords((prev) => prev.filter((id) => id !== activeWord.number));
+    }
+
+    // Devolve a letra correspondente ao pool
+    const nextPool = poolLetters.map((l) => {
+      if (l.usedInCell === cellKey) {
+        return { ...l, usedInCell: null };
+      }
+      return l;
+    });
+    setPoolLetters(nextPool);
+  };
+
+  // --- EMBARALHA AS LETRAS NÃO UTILIZADAS DO BANCO ---
+  const shufflePool = () => {
+    soundManager.playSFX("click");
+    const unused = poolLetters.filter((l) => !l.usedInCell);
+    const used = poolLetters.filter((l) => l.usedInCell);
+
+    // Embaralha o array unused
+    for (let i = unused.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [unused[i], unused[j]] = [unused[j], unused[i]];
+    }
+
+    setPoolLetters([...unused, ...used]);
   };
 
   const getAdjacentCell = (x: number, y: number, offset: number) => {
@@ -319,10 +418,15 @@ export default function HomeRoot() {
         setSolvedWords(nextSolved);
         soundManager.playSFX("correct");
         
+        // Remove dos incorretos se estivesse lá
+        setIncorrectWords((prev) => prev.filter((id) => id !== wordObj.number));
+        
         // Verifica se fechou todo o jogo
         checkOverallCompletion(nextSolved);
       } else {
-        // Palavra incorreta ( CrosswordBoard já toca sfx e treme )
+        // Palavra incorreta
+        soundManager.playSFX("error");
+        setIncorrectWords((prev) => prev.includes(wordObj.number) ? prev : [...prev, wordObj.number]);
       }
     }
   };
@@ -473,6 +577,32 @@ export default function HomeRoot() {
     }, 4000);
   };
 
+  // --- SINCRONIZA O POOL DE LETRAS COM INPUTS EXTERNOS (DICAS) ---
+  const syncPoolWithInputs = (nextInputs: Record<string, string>, currentPool: typeof poolLetters) => {
+    const updatedPool = currentPool.map((l) => ({ ...l, usedInCell: l.usedInCell }));
+
+    // Libera letras cujas células foram limpas
+    updatedPool.forEach((l) => {
+      if (l.usedInCell && !nextInputs[l.usedInCell]) {
+        l.usedInCell = null;
+      }
+    });
+
+    // Associa células preenchidas a letras correspondentes livres do banco
+    Object.entries(nextInputs).forEach(([cellKey, char]) => {
+      if (!char || char === "") return;
+      const hasAssignment = updatedPool.some((l) => l.usedInCell === cellKey);
+      if (!hasAssignment) {
+        const match = updatedPool.find((l) => l.char === char && !l.usedInCell);
+        if (match) {
+          match.usedInCell = cellKey;
+        }
+      }
+    });
+
+    return updatedPool;
+  };
+
   // --- SISTEMA DE DICAS ---
   const handleApplyHint = (type: "letter" | "half" | "explain" | "solve") => {
     if (!activeWord || !currentLevelData) return;
@@ -505,6 +635,7 @@ export default function HomeRoot() {
         soundManager.playSFX("click");
         const nextInputs = { ...inputs, [key]: correctChar };
         setInputs(nextInputs);
+        setPoolLetters((prev) => syncPoolWithInputs(nextInputs, prev));
         setHintsPenaltyPoints((p) => p + 10);
         setHintsUsedCount((c) => c + 1);
         setPerfectRun(false);
@@ -533,6 +664,7 @@ export default function HomeRoot() {
 
       if (changed) {
         setInputs(nextInputs);
+        setPoolLetters((prev) => syncPoolWithInputs(nextInputs, prev));
         setHintsPenaltyPoints((p) => p + 30);
         setHintsUsedCount((c) => c + 1);
         setPerfectRun(false);
@@ -572,6 +704,7 @@ export default function HomeRoot() {
 
       if (changed) {
         setInputs(nextInputs);
+        setPoolLetters((prev) => syncPoolWithInputs(nextInputs, prev));
         setHintsPenaltyPoints((p) => p + 50);
         setHintsUsedCount((c) => c + 1);
         setPerfectRun(false);
@@ -609,8 +742,8 @@ export default function HomeRoot() {
       <div className="fixed inset-0 pointer-events-none z-0 bg-[radial-gradient(circle_at_15%_15%,rgba(20,163,181,0.12),transparent_45%)]" />
 
       {/* CABEÇALHO GLOBAL */}
-      <header className="glass-panel border-b border-darkbg-border py-4 px-6 sticky top-0 z-30 flex justify-between items-center backdrop-blur-md">
-        <div className="flex items-center gap-3">
+      <header className="glass-panel border-b border-darkbg-border py-2.5 px-4 sticky top-0 z-30 flex justify-between items-center backdrop-blur-md">
+        <div className="flex items-center gap-2.5">
           {/* Menu Hambúrguer */}
           <button
             onClick={() => {
@@ -618,9 +751,9 @@ export default function HomeRoot() {
               if (screen === "game") setPauseOpen(true);
               else setScreen("levels");
             }}
-            className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-white transition-colors"
+            className="w-9 h-9 rounded-lg flex items-center justify-center bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-white transition-colors active:scale-95"
           >
-            <Menu size={20} />
+            <Menu size={16} />
           </button>
           
           <div
@@ -628,24 +761,24 @@ export default function HomeRoot() {
               soundManager.playSFX("click");
               setScreen("home");
             }}
-            className="flex items-center gap-2 cursor-pointer select-none"
+            className="flex items-center gap-1.5 cursor-pointer select-none"
           >
-            <h1 className="font-black text-lg md:text-xl tracking-wider text-dentist-400 uppercase">
+            <h1 className="font-black text-sm sm:text-base tracking-wider text-dentist-400 uppercase">
               OdontoCruzada
             </h1>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {/* Alternar Tema */}
           <button
             onClick={() => {
               soundManager.playSFX("click");
               setTheme(theme === "dark" ? "light" : "dark");
             }}
-            className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-white transition-all duration-200"
+            className="w-9 h-9 rounded-lg flex items-center justify-center bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-white transition-all duration-200 active:scale-95"
           >
-            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+            {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
           </button>
 
           {/* Configurações */}
@@ -654,9 +787,9 @@ export default function HomeRoot() {
               soundManager.playSFX("click");
               setSettingsOpen(true);
             }}
-            className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-white transition-colors"
+            className="w-9 h-9 rounded-lg flex items-center justify-center bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-white transition-colors active:scale-95"
           >
-            <SettingsIcon size={20} />
+            <SettingsIcon size={16} />
           </button>
         </div>
       </header>
@@ -831,256 +964,221 @@ export default function HomeRoot() {
         {/* TELA DE GAMEPLAY ATIVA */}
         {screen === "game" && currentLevelData && currentLevelId && (
           <div className="flex flex-col gap-4">
-            {/* Header da Fase */}
-            <div className="glass-panel p-4 rounded-2xl flex flex-wrap gap-4 items-center justify-between shadow-md border border-darkbg-border">
-              <div>
-                <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
-                  Fase {currentLevelId} - {OdontoDatabase.find(l => l.id === currentLevelId)?.category}
-                </span>
-                <h3 className="font-extrabold text-slate-100 text-base md:text-lg leading-tight mt-0.5">
-                  {OdontoDatabase.find(l => l.id === currentLevelId)?.title}
-                </h3>
-              </div>
-
-              {/* Status do Jogo */}
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5 font-mono text-sm font-bold bg-slate-800 py-1.5 px-3 rounded-xl border border-darkbg-border">
-                  <Clock size={15} className="text-amber-500 animate-pulse" />
-                  {Math.floor(timeSpent / 60)
-                    .toString()
-                    .padStart(2, "0")}
-                  :{(timeSpent % 60).toString().padStart(2, "0")}
+            {/* Header Compacto da Fase */}
+            <div className="glass-panel p-3 rounded-2xl border border-darkbg-border flex flex-col gap-2 shadow-sm bg-slate-900/40">
+              <div className="flex justify-between items-center w-full">
+                <div>
+                  <span className="text-[9px] text-dentist-400 font-black uppercase tracking-wider">
+                    Fase {currentLevelId} • {OdontoDatabase.find(l => l.id === currentLevelId)?.category}
+                  </span>
+                  <h3 className="font-extrabold text-slate-100 text-sm leading-tight">
+                    {OdontoDatabase.find(l => l.id === currentLevelId)?.title}
+                  </h3>
                 </div>
 
-                <div className="flex items-center gap-1.5 text-sm font-bold bg-slate-800 py-1.5 px-3 rounded-xl border border-darkbg-border">
-                  <Star size={15} className="fill-amber-400 text-amber-400" />
-                  <span>{getEstimatedScore()}</span>
-                </div>
-
-                <div className="text-xs font-bold text-slate-300 hidden sm:block">
-                  {solvedWords.length} / {currentLevelData.words.length} Palavras
-                </div>
-
-                <button
-                  onClick={() => {
-                    soundManager.playSFX("click");
-                    setPauseOpen(true);
-                  }}
-                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 border border-slate-700 text-slate-300 hover:border-dentist-500 hover:text-white"
-                >
-                  Pausar
-                </button>
-              </div>
-            </div>
-
-            {/* Barra de Perfil e Progresso do Nível */}
-            <div className="flex items-center gap-3 w-full bg-slate-800/40 border border-darkbg-border p-3 rounded-2xl">
-              <span className="bg-dentist-500 text-white font-black text-[10px] px-3 py-1 rounded-full shadow-md whitespace-nowrap">
-                NÍVEL {playerLevel}
-              </span>
-              <div className="flex-1 h-3 bg-slate-900/60 rounded-full p-0.5 overflow-hidden border border-slate-800">
-                <div
-                  style={{ width: `${Math.min(100, (playerXP / xpNeeded) * 100)}%` }}
-                  className="h-full bg-gradient-to-r from-dentist-600 to-dentist-400 rounded-full transition-all duration-500"
-                />
-              </div>
-              <span className="text-[11px] font-black text-slate-300">
-                {Math.round((playerXP / xpNeeded) * 100)}%
-              </span>
-            </div>
-
-            {/* Layout Lateral: Grade + Dicas */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              {/* Tabuleiro (Esquerda) */}
-              <div className="lg:col-span-8 flex flex-col gap-4">
-                {/* Tabuleiro Físico */}
-                <div className="glass-panel rounded-2xl overflow-hidden border border-darkbg-border flex items-center justify-center min-h-[350px] bg-slate-950/40 relative">
-                  <CrosswordBoard
-                    data={currentLevelData}
-                    activeWord={activeWord}
-                    onSelectWord={setActiveWord}
-                    focusedCell={focusedCell}
-                    onFocusCell={setFocusedCell}
-                    inputs={inputs}
-                    onChangeInputs={setInputs}
-                    solvedWords={solvedWords}
-                    onWordSolved={handleWordSolved}
-                  />
-                </div>
-
-                {/* Floating Snap Active Clue Banner (Mockup Pilot Style) */}
-                {activeWord && (
-                  <div className="glass-panel p-4 rounded-2xl border border-dentist-500/40 bg-slate-800/60 shadow-lg flex items-center justify-between gap-3 animate-fade-in">
-                    <div className="flex items-center gap-3 flex-1">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 shadow-md ${
-                        activeWord.dir === "H" ? "bg-emerald-500" : "bg-dentist-500"
-                      }`}>
-                        {activeWord.number}
-                        {activeWord.dir === "H" ? "→" : "↓"}
-                      </div>
-                      <p className="text-xs sm:text-sm font-extrabold text-slate-100 leading-normal">
-                        {activeWord.clue}
-                      </p>
-                    </div>
-                    
-                    {/* Botão de Explicação Clínica */}
-                    <button
-                      onClick={() => handleApplyHint("explain")}
-                      className="w-10 h-10 rounded-xl bg-dentist-500/10 border border-dentist-500/30 text-dentist-400 flex items-center justify-center hover:bg-dentist-500 hover:text-white transition-colors"
-                      title="Aula Rápida / Ver Explicação"
-                    >
-                      <Lightbulb size={20} />
-                    </button>
+                <div className="flex items-center gap-2">
+                  {/* Cronômetro */}
+                  <div className="flex items-center gap-1 font-mono text-xs font-bold bg-slate-800/60 py-1 px-2.5 rounded-xl border border-slate-700/40">
+                    <Clock size={12} className="text-amber-500 animate-pulse" />
+                    {Math.floor(timeSpent / 60).toString().padStart(2, "0")}:
+                    {(timeSpent % 60).toString().padStart(2, "0")}
                   </div>
-                )}
 
-                {/* Barra de Ações do Piloto */}
-                <div className="grid grid-cols-4 gap-2.5 w-full p-2.5 bg-slate-800/20 rounded-2xl border border-darkbg-border shadow-inner">
-                  <button
-                    onClick={() => handleApplyHint("letter")}
-                    className="flex flex-col items-center justify-center gap-1.5 py-2.5 bg-slate-800/70 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700/50 transition-colors shadow-sm"
-                  >
-                    <Lightbulb size={18} className="text-amber-400 fill-amber-400/10" />
-                    <span className="text-[10px] font-black uppercase tracking-wider">Dica</span>
-                  </button>
-                  
-                  <button
-                    onClick={() => {
-                      if (focusedCell) {
-                        const newInputs = { ...inputs, [`${focusedCell.x},${focusedCell.y}`]: "" };
-                        setInputs(newInputs);
-                        soundManager.playSFX("click");
-                      }
-                    }}
-                    className="flex flex-col items-center justify-center gap-1.5 py-2.5 bg-slate-800/70 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700/50 transition-colors shadow-sm"
-                  >
-                    <Eraser size={18} className="text-red-400" />
-                    <span className="text-[10px] font-black uppercase tracking-wider">Apagar</span>
-                  </button>
+                  {/* Moedas */}
+                  <div className="flex items-center gap-1 text-xs font-bold bg-slate-800/60 py-1 px-2.5 rounded-xl border border-slate-700/40 text-amber-400">
+                    <span>🪙</span>
+                    <span>{coins}</span>
+                  </div>
 
+                  {/* Pausar */}
                   <button
                     onClick={() => {
                       soundManager.playSFX("click");
-                      if (currentLevelData) {
-                        let allCorrect = true;
-                        currentLevelData.words.forEach((w) => {
-                          let typed = "";
-                          for (let i = 0; i < w.word.length; i++) {
-                            const cx = w.x + (w.dir === "H" ? i : 0);
-                            const cy = w.y + (w.dir === "V" ? i : 0);
-                            typed += inputs[`${cx},${cy}`] || "";
-                          }
-                          if (typed !== w.word) allCorrect = false;
-                        });
-                        if (allCorrect) {
-                          handleLevelComplete();
-                        } else {
-                          soundManager.playSFX("error");
-                          triggerToast("Existem erros ou palavras incompletas!", "❌");
-                        }
-                      }
+                      setPauseOpen(true);
                     }}
-                    className="flex flex-col items-center justify-center gap-1.5 py-2.5 bg-slate-800/70 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700/50 transition-colors shadow-sm"
+                    className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700/60 text-slate-300 hover:text-white flex items-center justify-center active:scale-95 transition-transform"
+                    title="Pausar"
                   >
-                    <CheckCircle size={18} className="text-emerald-400" />
-                    <span className="text-[10px] font-black uppercase tracking-wider">Verificar</span>
+                    ⏸
                   </button>
+                </div>
+              </div>
 
+              {/* Linha Fina de Progresso de XP */}
+              <div className="flex items-center gap-2.5 w-full bg-slate-800/20 px-2 py-1.5 rounded-xl border border-slate-850/50">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                  Nível {playerLevel}
+                </span>
+                <div className="flex-1 h-1.5 bg-slate-950 rounded-full overflow-hidden">
+                  <div
+                    style={{ width: `${Math.min(100, (playerXP / xpNeeded) * 100)}%` }}
+                    className="h-full bg-gradient-to-r from-dentist-500 to-emerald-400 rounded-full transition-all duration-500"
+                  />
+                </div>
+                <span className="text-[8px] font-mono font-black text-slate-400">
+                  {Math.round((playerXP / xpNeeded) * 100)}%
+                </span>
+              </div>
+            </div>
+
+            {/* Conteúdo Centralizado Mobile-First */}
+            <div className="max-w-xl w-full mx-auto flex flex-col gap-4 items-center">
+              {/* Tabuleiro Físico */}
+              <div className="glass-panel w-full rounded-3xl overflow-hidden border border-darkbg-border flex items-center justify-center p-3 bg-slate-950/40 relative">
+                <CrosswordBoard
+                  data={currentLevelData}
+                  activeWord={activeWord}
+                  onSelectWord={setActiveWord}
+                  focusedCell={focusedCell}
+                  onFocusCell={setFocusedCell}
+                  inputs={inputs}
+                  onChangeInputs={setInputs}
+                  solvedWords={solvedWords}
+                  onWordSolved={handleWordSolved}
+                  onReturnLetterToPool={handleReturnLetterToPool}
+                  incorrectWords={incorrectWords}
+                />
+              </div>
+
+              {/* Floating Snap Active Clue Banner (CodyCross/Duolingo style) */}
+              {activeWord && (
+                <div className="glass-panel p-3.5 w-full rounded-2xl border border-dentist-500/40 bg-slate-800/60 shadow-lg flex items-center justify-between gap-3 animate-fade-in">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-xs text-white shrink-0 shadow-md ${
+                      activeWord.dir === "H" ? "bg-emerald-500" : "bg-dentist-500"
+                    }`}>
+                      {activeWord.number}
+                      {activeWord.dir === "H" ? "→" : "↓"}
+                    </div>
+                    <p className="text-xs font-extrabold text-slate-100 leading-normal">
+                      {activeWord.clue}
+                    </p>
+                  </div>
+                  
+                  {/* Botão de Explicação Clínica */}
                   <button
-                    onClick={() => {
+                    onClick={() => handleApplyHint("explain")}
+                    className="w-9 h-9 rounded-xl bg-dentist-500/10 border border-dentist-500/30 text-dentist-400 flex items-center justify-center hover:bg-dentist-500 hover:text-white transition-all active:scale-90"
+                    title="Aula Rápida / Ver Explicação"
+                  >
+                    <Lightbulb size={18} />
+                  </button>
+                </div>
+              )}
+
+              {/* Barra de Ações do Piloto */}
+              <div className="grid grid-cols-4 gap-2 w-full p-2 bg-slate-900/40 rounded-2xl border border-darkbg-border shadow-inner">
+                {/* Letra */}
+                <button
+                  onClick={() => handleApplyHint("letter")}
+                  className="flex flex-col items-center justify-center gap-1 py-2 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700/40 transition-all active:scale-95 shadow-sm"
+                >
+                  <Lightbulb size={16} className="text-amber-400 fill-amber-400/10" />
+                  <span className="text-[9px] font-black uppercase tracking-wider mt-0.5">Letra</span>
+                  <span className="text-[8px] font-mono text-amber-500 font-extrabold">10 🪙</span>
+                </button>
+
+                {/* Metade */}
+                <button
+                  onClick={() => handleApplyHint("half")}
+                  className="flex flex-col items-center justify-center gap-1 py-2 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700/40 transition-all active:scale-95 shadow-sm"
+                >
+                  <Sparkles size={16} className="text-purple-400" />
+                  <span className="text-[9px] font-black uppercase tracking-wider mt-0.5">Metade</span>
+                  <span className="text-[8px] font-mono text-amber-500 font-extrabold">30 🪙</span>
+                </button>
+                
+                {/* Aula Rápida */}
+                <button
+                  onClick={() => handleApplyHint("explain")}
+                  className="flex flex-col items-center justify-center gap-1 py-2 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700/40 transition-all active:scale-95 shadow-sm"
+                >
+                  <BookOpen size={16} className="text-emerald-400" />
+                  <span className="text-[9px] font-black uppercase tracking-wider mt-0.5">Aula</span>
+                  <span className="text-[8px] font-mono text-amber-500 font-extrabold">5 🪙</span>
+                </button>
+
+                {/* Reiniciar Grade */}
+                <button
+                  onClick={() => {
+                    if (confirm("Deseja realmente limpar todas as palavras digitadas nesta fase?")) {
                       soundManager.playSFX("click");
                       setInputs({});
                       setSolvedWords([]);
-                    }}
-                    className="flex flex-col items-center justify-center gap-1.5 py-2.5 bg-slate-800/70 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700/50 transition-colors shadow-sm"
+                      // Devolve todas as letras ao pool
+                      setPoolLetters((prev) => prev.map((l) => ({ ...l, usedInCell: null })));
+                    }
+                  }}
+                  className="flex flex-col items-center justify-center gap-1 py-2 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700/40 transition-all active:scale-95 shadow-sm"
+                >
+                  <RotateCcw size={16} className="text-blue-400" />
+                  <span className="text-[9px] font-black uppercase tracking-wider mt-0.5">Reiniciar</span>
+                  <span className="text-[8px] font-medium text-slate-500 font-semibold">Grátis</span>
+                </button>
+              </div>
+
+              {/* Banco de Letras Embaralhadas (Anagrama) */}
+              <div className="w-full flex flex-col gap-3 p-4 bg-slate-900/50 rounded-3xl border border-darkbg-border shadow-md">
+                <div className="flex justify-between items-center px-1">
+                  <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
+                    Letras Disponíveis
+                  </span>
+                  <button
+                    onClick={shufflePool}
+                    className="flex items-center gap-1 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/60 rounded-lg text-[10px] font-black uppercase tracking-wider active:scale-95 transition-transform"
                   >
-                    <RotateCcw size={18} className="text-blue-400" />
-                    <span className="text-[10px] font-black uppercase tracking-wider">Reiniciar</span>
+                    🔄 Embaralhar
                   </button>
                 </div>
 
-                {/* Painel Educacional Dinâmico */}
-                {explanationActive && activeWord && (
-                  <div className="glass-panel p-4 rounded-xl border border-emerald-500 bg-emerald-500/5 animate-fade-in flex flex-col gap-1.5">
-                    <span className="text-[10px] text-emerald-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
-                      <CheckSquare size={12} /> Aula Rápida: {activeWord.word}
-                    </span>
-                    <p className="text-xs md:text-sm font-semibold text-slate-200 leading-relaxed">
-                      {activeWord.explanation}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Dicas e Perguntas Globais (Direita) */}
-              <div className="lg:col-span-4 flex flex-col gap-4">
-                {/* Mascote Interativo de Dicas (CodyCross/Duolingo Style) */}
-                <div className="glass-panel p-4 rounded-2xl border border-darkbg-border flex items-center gap-3 bg-gradient-to-tr from-slate-900/60 to-dentist-950/20 shadow-md">
-                  <img
-                    src="/mascot.png"
-                    alt="Mascote"
-                    className="w-12 h-12 object-contain shrink-0 animate-bounce-slow"
-                  />
-                  <div className="relative bg-slate-800/85 border border-slate-700/50 p-2.5 rounded-xl text-left">
-                    <div className="absolute right-full top-1/2 -translate-y-1/2 border-[6px] border-transparent border-r-slate-850" />
-                    <p className="text-[11px] font-bold text-slate-200 leading-normal">
-                      {mascotTip}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Painel Geral de Listagem de Dicas */}
-                <div className="glass-panel p-4 rounded-2xl border border-darkbg-border flex flex-col gap-3.5 max-h-[480px]">
-                  <h4 className="font-extrabold text-sm text-slate-100 flex items-center gap-2">
-                    Dicas Clínicas
-                  </h4>
-                  
-                  {/* Dicas Horizontais */}
-                  <div className="flex flex-col gap-2 overflow-y-auto pr-1 flex-1">
-                    <h5 className="font-extrabold text-xs text-dentist-400 uppercase tracking-wider">
-                      Horizontais
-                    </h5>
-                    <div className="flex flex-col gap-1.5">
-                      {getCluesOfDirection("H").map((w) => (
-                        <ClueItem
-                          key={w.number}
-                          word={w}
-                          isSelected={activeWord?.number === w.number}
-                          isSolved={solvedWords.includes(w.number)}
-                          onClick={() => {
-                            soundManager.playSFX("click");
-                            setActiveWord(w);
-                            setFocusedCell({ x: w.x, y: w.y });
-                          }}
-                        />
-                      ))}
-                    </div>
-
-                    <h5 className="font-extrabold text-xs text-dentist-400 uppercase tracking-wider mt-4">
-                      Verticais
-                    </h5>
-                    <div className="flex flex-col gap-1.5">
-                      {getCluesOfDirection("V").map((w) => (
-                        <ClueItem
-                          key={w.number}
-                          word={w}
-                          isSelected={activeWord?.number === w.number}
-                          isSolved={solvedWords.includes(w.number)}
-                          onClick={() => {
-                            soundManager.playSFX("click");
-                            setActiveWord(w);
-                            setFocusedCell({ x: w.x, y: w.y });
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
+                <div className="flex flex-wrap gap-2.5 justify-center w-full min-h-[60px]">
+                  {poolLetters.map((letter) => {
+                    const isUsed = letter.usedInCell !== null;
+                    return (
+                      <button
+                        key={letter.id}
+                        onClick={() => handleSelectLetterFromPool(letter.id)}
+                        disabled={isUsed}
+                        className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl font-black text-base flex items-center justify-center transition-all duration-150 border ${
+                          isUsed
+                            ? "bg-slate-950/40 border-slate-900 text-slate-700 opacity-20 cursor-not-allowed"
+                            : "bg-slate-800 hover:bg-slate-700 text-slate-100 border-slate-600/80 shadow-md active:scale-90 hover:scale-105 active:bg-dentist-500 active:text-white"
+                        }`}
+                      >
+                        {letter.char}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
+
+              {/* Mascote Interativo de Dicas (CodyCross/Duolingo Style) */}
+              <div className="glass-panel p-3 w-full rounded-2xl border border-darkbg-border flex items-center gap-3 bg-gradient-to-tr from-slate-900/60 to-dentist-950/20 shadow-md">
+                <img
+                  src="/mascot.png"
+                  alt="Mascote"
+                  className="w-10 h-10 object-contain shrink-0 animate-bounce-slow"
+                />
+                <div className="relative bg-slate-800/85 border border-slate-700/50 p-2.5 rounded-xl text-left flex-1">
+                  <div className="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-slate-850" />
+                  <p className="text-[10px] font-bold text-slate-200 leading-normal">
+                    {mascotTip}
+                  </p>
+                </div>
+              </div>
+
+              {/* Painel Educacional Dinâmico (Aula Rápida) */}
+              {explanationActive && activeWord && (
+                <div className="glass-panel p-3.5 w-full rounded-2xl border border-emerald-500 bg-emerald-500/5 animate-fade-in flex flex-col gap-1">
+                  <span className="text-[9px] text-emerald-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
+                    📖 Aula Rápida: {activeWord.word}
+                  </span>
+                  <p className="text-xs font-semibold text-slate-200 leading-relaxed">
+                    {activeWord.explanation}
+                  </p>
+                </div>
+              )}
             </div>
-
-            {/* Teclado Virtual Mobile */}
-            <VirtualKeyboard onKeyPress={handleKeyboardInput} visible={screen === "game"} />
           </div>
         )}
 
