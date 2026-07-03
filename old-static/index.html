@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Palavras Cruzadas Odontológicas - Jogo Educacional Premium</title>
+  <!-- FontAwesome para Ícones Premium -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Arquivo de Estilos principal -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Efeito de brilho de fundo -->
+  <div class="app-bg-glow"></div>
+
+  <!-- Container Geral da Aplicação -->
+  <div id="app-container">
+    
+    <!-- Cabeçalho Principal (Global) -->
+    <header class="app-header">
+      <div class="logo-group" id="btn-global-logo">
+        <div class="logo-icon">
+          <i class="fa-solid fa-tooth"></i>
+        </div>
+        <div class="logo-text">
+          <h1>OdontoCruzada</h1>
+          <p>Educacional e Profissional</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <!-- Indicadores rápidos de Nível e Moedas/Pontos -->
+        <div class="btn-icon" id="btn-toggle-theme" title="Alternar Tema">
+          <i class="fa-solid fa-moon"></i>
+        </div>
+        <div class="btn-icon" id="btn-global-stats" title="Estatísticas">
+          <i class="fa-solid fa-chart-simple"></i>
+        </div>
+        <div class="btn-icon" id="btn-global-achievements" title="Conquistas">
+          <i class="fa-solid fa-trophy"></i>
+        </div>
+        <div class="btn-icon" id="btn-global-settings" title="Configurações">
+          <i class="fa-solid fa-gear"></i>
+        </div>
+      </div>
+    </header>
+
+    <!-- TELA INICIAL (MENU PRINCIPAL) -->
+    <main id="screen-home" class="screen active">
+      <div class="home-layout">
+        <!-- Cartão de Boas-Vindas e Ação Principal -->
+        <div class="welcome-card">
+          <h2>Domine a Odontologia Palavra por Palavra</h2>
+          <p>
+            Desafie seu conhecimento clínico, anatomia, periodontia e muito mais em 50 fases progressivas de palavras cruzadas científicas. Ideal para acadêmicos, dentistas e entusiastas da saúde bucal!
+          </p>
+          <div class="home-menu-buttons">
+            <button class="menu-large-btn play-btn" id="btn-home-play">
+              <div class="btn-icon-wrapper"><i class="fa-solid fa-circle-play"></i></div>
+              <h3>Jogar</h3>
+              <p>Iniciar ou continuar aventura</p>
+            </button>
+            <button class="menu-large-btn" id="btn-home-select-level">
+              <div class="btn-icon-wrapper"><i class="fa-solid fa-list-check"></i></div>
+              <h3>Selecionar Fase</h3>
+              <p>Escolher entre 50 níveis</p>
+            </button>
+          </div>
+        </div>
+
+        <!-- Painel de Perfil e Estatísticas Rápidas -->
+        <div class="player-profile-panel">
+          <div class="profile-header">
+            <div class="player-avatar">
+              <i class="fa-solid fa-user-doctor"></i>
+            </div>
+            <div class="player-info">
+              <h3 id="profile-player-name">Cirurgião Estudante</h3>
+              <span class="player-rank" id="profile-player-rank">Iniciante</span>
+            </div>
+          </div>
+          
+          <div class="xp-bar-container">
+            <div class="xp-bar-text">
+              <span>Nível <strong id="profile-player-level">1</strong></span>
+              <span id="profile-xp-text">0 / 1000 XP</span>
+            </div>
+            <div class="xp-bar-outer">
+              <div class="xp-bar-inner" id="profile-xp-bar-fill"></div>
+            </div>
+          </div>
+
+          <div class="stats-grid-compact">
+            <div class="stat-box-compact">
+              <span>Fases Concluídas</span>
+              <strong id="stat-completed-count">0 / 50</strong>
+            </div>
+            <div class="stat-box-compact">
+              <span>Pontos Totais</span>
+              <strong id="stat-total-score">0</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- TELA DE SELEÇÃO DE FASES (LEVEL SELECT) -->
+    <section id="screen-levels" class="screen">
+      <div class="levels-header">
+        <button class="btn-secondary" id="btn-levels-back"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
+        <h2>Selecione uma Fase</h2>
+        <div></div> <!-- Espaçador flex -->
+      </div>
+
+      <!-- Abas de Especialidades (Filtros Rápidos) -->
+      <div class="category-tabs" id="category-tabs-container">
+        <!-- Preenchido dinamicamente via JS -->
+      </div>
+
+      <!-- Grade de Níveis -->
+      <div class="levels-grid" id="levels-grid-container">
+        <!-- Preenchido dinamicamente via JS -->
+      </div>
+    </section>
+
+    <!-- TELA DE JOGO (GAMEPLAY) -->
+    <section id="screen-game" class="screen">
+      <!-- Painel Superior de Status da Fase -->
+      <div class="game-header">
+        <div class="game-level-info">
+          <span id="game-level-category">Categoria da Fase</span>
+          <h3 id="game-level-title">Título da Fase</h3>
+        </div>
+        
+        <div class="game-stats-row">
+          <div class="game-stat-item timer" title="Bônus de Tempo">
+            <i class="fa-solid fa-clock"></i>
+            <span id="game-timer">00:00</span>
+          </div>
+          <div class="game-stat-item" title="Pontuação">
+            <i class="fa-solid fa-star"></i>
+            <span id="game-score">0</span>
+          </div>
+          <div class="game-stat-item" title="Nível de Estrelas">
+            <span id="game-stars-bar">
+              <i class="fa-solid fa-star star-filled"></i>
+              <i class="fa-solid fa-star star-filled"></i>
+              <i class="fa-solid fa-star star-filled"></i>
+            </span>
+          </div>
+        </div>
+
+        <button class="btn-icon" id="btn-game-pause" title="Pausar Jogo">
+          <i class="fa-solid fa-pause"></i>
+        </button>
+      </div>
+
+      <!-- Layout Principal da Partida (Grade + Painel Lateral de Dicas) -->
+      <div class="game-layout">
+        <!-- Lado Esquerdo: Tabuleiro Virtual das Palavras Cruzadas -->
+        <div class="board-container">
+          <div class="crossword-grid" id="crossword-board">
+            <!-- Gerado proceduralmente pelo JS -->
+          </div>
+        </div>
+
+        <!-- Lado Direito: Painel de Dicas Ativas e Lista Geral de Palavras -->
+        <div class="clues-panel">
+          <!-- Dica Ativa (Foco do Cursor) -->
+          <div class="active-clue-card">
+            <h4 id="active-clue-label">Dica Selecionada</h4>
+            <p id="active-clue-text">Selecione uma palavra na grade para exibir a dica correspondente.</p>
+          </div>
+
+          <!-- Explicação Educacional Detalhada (Desbloqueada por Ajuda) -->
+          <div class="educational-card" id="game-educational-card">
+            <h4><i class="fa-solid fa-graduation-cap"></i> Conteúdo Educacional Detalhado</h4>
+            <p id="game-educational-text">Aqui ficará a explicação científica sobre o termo odontológico.</p>
+          </div>
+
+          <!-- Abas de Lista Completa de Dicas (Horizontais e Verticais) -->
+          <div class="clues-list-card">
+            <div class="clues-tabs">
+              <button class="clues-tab active" id="tab-clues-horiz">Horizontais</button>
+              <button class="clues-tab" id="tab-clues-vert">Verticais</button>
+            </div>
+            <div class="clues-scroll-area" id="clues-scroll-container">
+              <!-- Injetado dinamicamente -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra de Controle Inferior (Opções de Dicas e Validação) -->
+      <div class="game-controls-bar">
+        <!-- Painel de Dicas com Penalidades -->
+        <div class="game-action-buttons">
+          <button class="btn-secondary" id="btn-hint-letter" title="Revelar 1 letra na célula focada (-10 pts)">
+            <i class="fa-solid fa-lightbulb"></i> Revelar Letra (-10)
+          </button>
+          <button class="btn-secondary" id="btn-hint-half" title="Revelar metade da palavra (-30 pts)">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Revelar Metade (-30)
+          </button>
+          <button class="btn-secondary" id="btn-hint-explain" title="Explicar termo detalhadamente (-5 pts)">
+            <i class="fa-solid fa-book-open"></i> Explicação (-5)
+          </button>
+          <button class="btn-secondary" id="btn-hint-solve" title="Resolver palavra inteira (-50 pts)">
+            <i class="fa-solid fa-circle-check"></i> Resolver (-50)
+          </button>
+        </div>
+
+        <div class="game-action-buttons">
+          <button class="btn-secondary" id="btn-game-clear"><i class="fa-solid fa-eraser"></i> Limpar</button>
+          <button class="btn-primary" id="btn-game-verify"><i class="fa-solid fa-check-double"></i> Verificar Respostas</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TELA FINAL (FIM DA FASE) -->
+    <section id="screen-end" class="screen">
+      <div class="end-layout">
+        <div class="logo-icon" style="width:60px; height:60px; font-size: 2rem;">
+          <i class="fa-solid fa-trophy"></i>
+        </div>
+        <h2>Fase Concluída!</h2>
+        <p id="end-level-summary">Você demonstrou excelente competência na categoria!</p>
+        
+        <!-- Estrelas Conquistadas -->
+        <div class="end-stars" id="end-stars-container">
+          <i class="fa-solid fa-star end-star-icon" id="end-star-1"></i>
+          <i class="fa-solid fa-star end-star-icon" id="end-star-2"></i>
+          <i class="fa-solid fa-star end-star-icon" id="end-star-3"></i>
+        </div>
+
+        <!-- Estatísticas da Partida -->
+        <div class="end-stats-container">
+          <div class="end-stat-box">
+            <span>Pontuação</span>
+            <strong id="end-score">0</strong>
+          </div>
+          <div class="end-stat-box">
+            <span>Tempo Total</span>
+            <strong id="end-time">00:00</strong>
+          </div>
+          <div class="end-stat-box">
+            <span>Precisão</span>
+            <strong id="end-accuracy">100%</strong>
+          </div>
+          <div class="end-stat-box">
+            <span>Dicas Usadas</span>
+            <strong id="end-hints">0</strong>
+          </div>
+        </div>
+
+        <!-- Barra de Progresso de XP no Final da Fase -->
+        <div class="xp-progress-block">
+          <div class="xp-progress-header">
+            <span>XP Ganho: <strong id="end-xp-earned">+0 XP</strong></span>
+            <span id="end-level-text">Nível 1</span>
+          </div>
+          <div class="xp-bar-outer" style="height: 10px;">
+            <div class="xp-bar-inner" id="end-xp-bar-fill"></div>
+          </div>
+          <div class="xp-level-up-alert" id="end-level-up-alert">
+            <i class="fa-solid fa-circle-up"></i> NOVO NÍVEL ALCANÇADO!
+          </div>
+        </div>
+
+        <!-- Ações -->
+        <div class="end-actions">
+          <button class="btn-secondary" id="btn-end-menu"><i class="fa-solid fa-house"></i> Menu</button>
+          <button class="btn-secondary" id="btn-end-retry"><i class="fa-solid fa-rotate-right"></i> Repetir</button>
+          <button class="btn-primary" id="btn-end-next">Próxima Fase <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+      </div>
+    </section>
+
+  </div> <!-- Fim de app-container -->
+
+  <!-- ================= MODAIS ================= -->
+
+  <!-- MODAL DE CONFIGURAÇÕES -->
+  <div class="modal-overlay" id="modal-settings">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Configurações</h3>
+        <button class="btn-icon" id="btn-close-settings"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="settings-list">
+        <div class="setting-item">
+          <div class="setting-info">
+            <h4>Música Ambiente</h4>
+            <p>Sons relaxantes sintetizados de fundo.</p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="setting-music" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="setting-item">
+          <div class="setting-info">
+            <h4>Efeitos Sonoros</h4>
+            <p>Sons de acerto, erro e cliques.</p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="setting-sfx" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="setting-item">
+          <div class="setting-info">
+            <h4>Modo Escuro / Claro</h4>
+            <p>Alternar aparência visual da interface.</p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="setting-theme-toggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+      <button class="btn-primary" id="btn-save-settings" style="justify-content: center;">Salvar e Fechar</button>
+    </div>
+  </div>
+
+  <!-- MODAL DE PAUSA -->
+  <div class="modal-overlay" id="modal-pause">
+    <div class="modal-content" style="text-align: center;">
+      <h3>Jogo Pausado</h3>
+      <p>Sua partida está pausada. O cronômetro foi parado.</p>
+      
+      <div style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
+        <button class="btn-primary" id="btn-pause-resume" style="justify-content: center;">
+          <i class="fa-solid fa-play"></i> Retomar Partida
+        </button>
+        <button class="btn-secondary" id="btn-pause-restart" style="justify-content: center;">
+          <i class="fa-solid fa-rotate-right"></i> Reiniciar Fase
+        </button>
+        <button class="btn-secondary" id="btn-pause-menu" style="justify-content: center;">
+          <i class="fa-solid fa-house"></i> Voltar ao Menu Inicial
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE ESTATÍSTICAS DETALHADAS -->
+  <div class="modal-overlay" id="modal-stats-view">
+    <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3>Estatísticas Clínicas</h3>
+        <button class="btn-icon" id="btn-close-stats"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      
+      <div class="stats-grid-detailed">
+        <div class="stat-card-detailed">
+          <i class="fa-solid fa-clock"></i>
+          <span>Tempo Jogado</span>
+          <strong id="detail-stat-time">00:00</strong>
+        </div>
+        <div class="stat-card-detailed">
+          <i class="fa-solid fa-check"></i>
+          <span>Acertos Sem Dica</span>
+          <strong id="detail-stat-perfect">0</strong>
+        </div>
+        <div class="stat-card-detailed">
+          <i class="fa-solid fa-lightbulb"></i>
+          <span>Dicas Usadas</span>
+          <strong id="detail-stat-hints">0</strong>
+        </div>
+        <div class="stat-card-detailed">
+          <i class="fa-solid fa-star-half-stroke"></i>
+          <span>Precisão Média</span>
+          <strong id="detail-stat-accuracy">0%</strong>
+        </div>
+      </div>
+
+      <div class="history-section">
+        <h3>Histórico de Especialidades</h3>
+        <div class="history-table-container">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Especialidade</th>
+                <th>Fases</th>
+                <th>Progresso</th>
+                <th>Melhor Score</th>
+              </tr>
+            </thead>
+            <tbody id="stats-history-tbody">
+              <!-- Injetado dinamicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CONQUISTAS (ACHIEVEMENTS PANEL) -->
+  <div class="modal-overlay" id="modal-achievements-view">
+    <div class="modal-content" style="max-width: 650px;">
+      <div class="modal-header">
+        <h3>Conquistas e Medalhas</h3>
+        <button class="btn-icon" id="btn-close-achievements"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <p style="color: var(--text-secondary); margin-bottom: 1rem;">Seu progresso científico acumulado e prêmios especiais concedidos:</p>
+      
+      <div class="achievements-grid" id="achievements-grid-container">
+        <!-- Injetado dinamicamente via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Container de Notificação Flutuante de Conquistas (Toast) -->
+  <div id="toast-container"></div>
+
+  <!-- TECLADO VIRTUAL DE TELA INTEIRA PARA MOBILE -->
+  <div class="virtual-keyboard" id="mobile-virtual-keyboard">
+    <div class="keyboard-row">
+      <div class="keyboard-key" data-key="Q">Q</div>
+      <div class="keyboard-key" data-key="W">W</div>
+      <div class="keyboard-key" data-key="E">E</div>
+      <div class="keyboard-key" data-key="R">R</div>
+      <div class="keyboard-key" data-key="T">T</div>
+      <div class="keyboard-key" data-key="Y">Y</div>
+      <div class="keyboard-key" data-key="U">U</div>
+      <div class="keyboard-key" data-key="I">I</div>
+      <div class="keyboard-key" data-key="O">O</div>
+      <div class="keyboard-key" data-key="P">P</div>
+    </div>
+    <div class="keyboard-row">
+      <div class="keyboard-key" data-key="A">A</div>
+      <div class="keyboard-key" data-key="S">S</div>
+      <div class="keyboard-key" data-key="D">D</div>
+      <div class="keyboard-key" data-key="F">F</div>
+      <div class="keyboard-key" data-key="G">G</div>
+      <div class="keyboard-key" data-key="H">H</div>
+      <div class="keyboard-key" data-key="J">J</div>
+      <div class="keyboard-key" data-key="K">K</div>
+      <div class="keyboard-key" data-key="L">L</div>
+      <div class="keyboard-key wide" data-key="BACKSPACE"><i class="fa-solid fa-delete-left"></i></div>
+    </div>
+    <div class="keyboard-row">
+      <div class="keyboard-key" data-key="Z">Z</div>
+      <div class="keyboard-key" data-key="X">X</div>
+      <div class="keyboard-key" data-key="C">C</div>
+      <div class="keyboard-key" data-key="V">V</div>
+      <div class="keyboard-key" data-key="B">B</div>
+      <div class="keyboard-key" data-key="N">N</div>
+      <div class="keyboard-key" data-key="M">M</div>
+      <div class="keyboard-key wide" data-key="ENTER">IR</div>
+    </div>
+  </div>
+
+  <!-- Inclusão dos Arquivos Lógicos -->
+  <script src="database.js"></script>
+  <script src="generator.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

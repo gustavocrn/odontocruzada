@@ -1,0 +1,1360 @@
+"use client";
+
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Award,
+  BarChart2,
+  Settings as SettingsIcon,
+  Play,
+  RotateCcw,
+  Volume2,
+  VolumeX,
+  Music,
+  Moon,
+  Sun,
+  X,
+  Clock,
+  Star,
+  CheckCircle,
+  HelpCircle,
+  BookOpen,
+  ArrowRight,
+  Home,
+  CheckSquare,
+  Eraser,
+  Lock,
+  ChevronDown,
+  ChevronUp,
+  Menu,
+  GraduationCap,
+  Brain,
+  Trophy,
+  Lightbulb,
+} from "lucide-react";
+
+import { OdontoDatabase, Level } from "@/data/database";
+import { CrosswordGenerator, GeneratorResult, PlacedWord } from "@/utils/generator";
+import { soundManager } from "@/utils/sound";
+
+// Componentes locais
+import LevelGrid from "@/components/LevelGrid";
+import CrosswordBoard from "@/components/CrosswordBoard";
+import VirtualKeyboard from "@/components/VirtualKeyboard";
+import ClueItem from "@/components/ClueItem";
+import AchievementsPanel from "@/components/AchievementsPanel";
+import StatsPanel from "@/components/StatsPanel";
+import Confetti from "@/components/Confetti";
+
+import { AchievementsList, Achievement } from "@/data/achievements";
+
+const mascotTips = [
+  "O esmalte dental é o tecido mais mineralizado do corpo humano!",
+  "A polpa é a única estrutura mole e vascularizada do dente.",
+  "Sempre esterilize os instrumentais em autoclave a 121°C ou 134°C.",
+  "A mandíbula é o único osso móvel da cabeça!",
+  "Parabéns pelo progresso! Você está agindo como um profissional de elite.",
+  "O periodonto de sustentação protege e fixa o dente nos maxilares.",
+  "Dica clínica: uma boa anamnese evita 90% das intercorrências em consultório!",
+];
+
+export default function HomeRoot() {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // --- ESTADOS GERAIS DE PROGRESSÃO ---
+  const [playerLevel, setPlayerLevel] = useState(1);
+  const [playerXP, setPlayerXP] = useState(0);
+  const [coins, setCoins] = useState(100);
+  const [highestUnlockedLevel, setHighestUnlockedLevel] = useState(1);
+  const [levelsCompleted, setLevelsCompleted] = useState(0);
+  const [totalScore, setTotalScore] = useState(0);
+  const [unlockedLevels, setUnlockedLevels] = useState<Record<number, { stars: number; bestScore: number }>>({});
+  const [unlockedAchievements, setUnlockedAchievements] = useState<string[]>([]);
+  const [mascotTip, setMascotTip] = useState(mascotTips[0]);
+  const [statistics, setStatistics] = useState({
+    totalPlayTime: 0,
+    perfectSolves: 0,
+    totalHintsUsed: 0,
+    totalExplanationsRead: 0,
+    averageAccuracy: 100,
+    totalPhasesPlayed: 0,
+  });
+
+  // --- ESTADOS DA TELA E MODAIS ---
+  const [screen, setScreen] = useState<"home" | "levels" | "game" | "end">("home");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [pauseOpen, setPauseOpen] = useState(false);
+  const [achievementsOpen, setAchievementsOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [musicOn, setMusicOn] = useState(true);
+  const [sfxOn, setSfxOn] = useState(true);
+
+  // --- ESTADOS DA PARTIDA ATIVA ---
+  const [currentLevelId, setCurrentLevelId] = useState<number | null>(null);
+  const [currentLevelData, setCurrentLevelData] = useState<GeneratorResult | null>(null);
+  const [activeWord, setActiveWord] = useState<PlacedWord | null>(null);
+  const [focusedCell, setFocusedCell] = useState<{ x: number; y: number } | null>(null);
+  const [inputs, setInputs] = useState<Record<string, string>>({});
+  const [solvedWords, setSolvedWords] = useState<number[]>([]);
+  const [timeSpent, setTimeSpent] = useState(0);
+  const [hintsPenaltyPoints, setHintsPenaltyPoints] = useState(0);
+  const [hintsUsedCount, setHintsUsedCount] = useState(0);
+  const [perfectRun, setPerfectRun] = useState(true);
+  const [explanationActive, setExplanationActive] = useState(false);
+
+  // Estatísticas da última partida concluída (para conquistas)
+  const [lastHintsUsed, setLastHintsUsed] = useState(0);
+  const [lastTimeSpent, setLastTimeSpent] = useState(0);
+
+  const [toasts, setToasts] = useState<{ id: string; title: string; icon: string }[]>([]);
+  const timerRef = useRef<any>(null);
+  const generatorRef = useRef(new CrosswordGenerator());
+
+  // --- CARREGA DADOS DO LOCALSTORAGE ---
+  useEffect(() => {
+    const savedSave = localStorage.getItem("odontocross_save");
+    if (savedSave) {
+      try {
+        const parsed = JSON.parse(savedSave);
+        if (parsed.playerLevel) setPlayerLevel(parsed.playerLevel);
+        if (parsed.playerXP) setPlayerXP(parsed.playerXP);
+        if (parsed.coins !== undefined) setCoins(parsed.coins);
+        if (parsed.highestUnlockedLevel) setHighestUnlockedLevel(parsed.highestUnlockedLevel);
+        if (parsed.levelsCompleted) setLevelsCompleted(parsed.levelsCompleted);
+        if (parsed.totalScore) setTotalScore(parsed.totalScore);
+        if (parsed.unlockedLevels) setUnlockedLevels(parsed.unlockedLevels);
+        if (parsed.unlockedAchievements) setUnlockedAchievements(parsed.unlockedAchievements);
+        if (parsed.statistics) setStatistics(parsed.statistics);
+      } catch (e) {
+        console.error("Erro ao ler dados salvos:", e);
+      }
+    }
+
+    const savedTheme = localStorage.getItem("odontocross_theme");
+    if (savedTheme) {
+      setTheme(savedTheme as "dark" | "light");
+    }
+
+    const savedSettings = localStorage.getItem("odontocross_settings");
+    if (savedSettings) {
+      try {
+        const settings = JSON.parse(savedSettings);
+        setMusicOn(settings.musicOn ?? true);
+        setSfxOn(settings.sfxOn ?? true);
+        soundManager.isSFXEnabled = settings.sfxOn ?? true;
+      } catch {}
+    }
+
+    setIsLoaded(true);
+  }, []);
+
+  // --- SALVA NO LOCALSTORAGE ---
+  const saveProgress = (updates: {
+    level?: number;
+    xp?: number;
+    coins?: number;
+    highestLevel?: number;
+    levelsComp?: number;
+    totScore?: number;
+    unlockedLvl?: Record<number, { stars: number; bestScore: number }>;
+    unlockedAch?: string[];
+    stats?: typeof statistics;
+  }) => {
+    const data = {
+      playerLevel: updates.level ?? playerLevel,
+      playerXP: updates.xp ?? playerXP,
+      coins: updates.coins ?? coins,
+      highestUnlockedLevel: updates.highestLevel ?? highestUnlockedLevel,
+      levelsCompleted: updates.levelsComp ?? levelsCompleted,
+      totalScore: updates.totScore ?? totalScore,
+      unlockedLevels: updates.unlockedLvl ?? unlockedLevels,
+      unlockedAchievements: updates.unlockedAch ?? unlockedAchievements,
+      statistics: updates.stats ?? statistics,
+    };
+    localStorage.setItem("odontocross_save", JSON.stringify(data));
+  };
+
+  // --- APLICA TEMA ---
+  useEffect(() => {
+    if (theme === "light") {
+      document.documentElement.classList.add("theme-light");
+      document.documentElement.classList.remove("dark");
+    } else {
+      document.documentElement.classList.remove("theme-light");
+      document.documentElement.classList.add("dark");
+    }
+    localStorage.setItem("odontocross_theme", theme);
+  }, [theme]);
+
+  // --- INICIALIZA MÚSICA AMBIENTE ---
+  useEffect(() => {
+    soundManager.toggleMusic(musicOn && screen !== "home");
+    return () => {
+      soundManager.stopAmbientMusic();
+    };
+  }, [musicOn, screen]);
+
+  // --- GERENCIA O CRONÔMETRO DE JOGO ---
+  useEffect(() => {
+    if (screen === "game" && !pauseOpen) {
+      timerRef.current = setInterval(() => {
+        setTimeSpent((t) => t + 1);
+      }, 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [screen, pauseOpen]);
+
+  if (!isLoaded) return null;
+
+  const xpNeeded = 1000 + (playerLevel - 1) * 300;
+
+  // --- INICIA UMA FASE ---
+  const handleStartLevel = (levelId: number) => {
+    const level = OdontoDatabase.find((l) => l.id === levelId);
+    if (!level) return;
+
+    setCurrentLevelId(levelId);
+    setTimeSpent(0);
+    setHintsPenaltyPoints(0);
+    setHintsUsedCount(0);
+    setPerfectRun(true);
+    setSolvedWords([]);
+    setInputs({});
+    setFocusedCell(null);
+    setExplanationActive(false);
+
+    // Geração procedural da grade
+    const generated = generatorRef.current.generate(level.words);
+    if (!generated) {
+      alert("Falha ao gerar grade procedural. Tente novamente.");
+      return;
+    }
+
+    setCurrentLevelData(generated);
+    setScreen("game");
+
+    // Seleciona a primeira palavra
+    if (generated.words.length > 0) {
+      setActiveWord(generated.words[0]);
+      setFocusedCell({ x: generated.words[0].x, y: generated.words[0].y });
+    }
+  };
+
+  // --- TRATA O INPUT DO TECLADO VIRTUAL OU FÍSICO ---
+  const handleKeyboardInput = (key: string) => {
+    if (!focusedCell || !currentLevelData || !activeWord) return;
+
+    const { x, y } = focusedCell;
+    const cellKey = `${x},${y}`;
+
+    if (key === "BACKSPACE") {
+      // Limpa célula focada
+      if (inputs[cellKey] && inputs[cellKey] !== "") {
+        const newInputs = { ...inputs, [cellKey]: "" };
+        setInputs(newInputs);
+      } else {
+        // Move foco para trás
+        const prev = getAdjacentCell(x, y, -1);
+        if (prev) {
+          setFocusedCell(prev);
+          setInputs({ ...inputs, [`${prev.x},${prev.y}`]: "" });
+        }
+      }
+    } else if (key === "ENTER") {
+      // Pula para a próxima palavra
+      const idx = currentLevelData.words.findIndex((w) => w.number === activeWord.number);
+      const nextIdx = (idx + 1) % currentLevelData.words.length;
+      const nextWord = currentLevelData.words[nextIdx];
+      setActiveWord(nextWord);
+      setFocusedCell({ x: nextWord.x, y: nextWord.y });
+    } else {
+      // Insere caractere e avança
+      const newInputs = { ...inputs, [cellKey]: key.toUpperCase() };
+      setInputs(newInputs);
+
+      // Checa se completou a palavra
+      checkWordCompleteness(activeWord, newInputs);
+
+      const next = getAdjacentCell(x, y, 1);
+      if (next) setFocusedCell(next);
+    }
+  };
+
+  const getAdjacentCell = (x: number, y: number, offset: number) => {
+    if (!activeWord) return null;
+    const nx = x + (activeWord.dir === "H" ? offset : 0);
+    const ny = y + (activeWord.dir === "V" ? offset : 0);
+    const index = activeWord.dir === "H" ? nx - activeWord.x : ny - activeWord.y;
+    if (index >= 0 && index < activeWord.word.length) {
+      return { x: nx, y: ny };
+    }
+    return null;
+  };
+
+  // Verifica preenchimento completo de uma palavra específica
+  const checkWordCompleteness = (wordObj: PlacedWord, currentInputs: Record<string, string>) => {
+    const len = wordObj.word.length;
+    let typed = "";
+    let complete = true;
+
+    for (let i = 0; i < len; i++) {
+      const cx = wordObj.x + (wordObj.dir === "H" ? i : 0);
+      const cy = wordObj.y + (wordObj.dir === "V" ? i : 0);
+      const letter = currentInputs[`${cx},${cy}`] || "";
+      if (letter === "") {
+        complete = false;
+        break;
+      }
+      typed += letter;
+    }
+
+    if (complete && !solvedWords.includes(wordObj.number)) {
+      if (typed === wordObj.word) {
+        // Palavra Correta!
+        const nextSolved = [...solvedWords, wordObj.number];
+        setSolvedWords(nextSolved);
+        soundManager.playSFX("correct");
+        
+        // Verifica se fechou todo o jogo
+        checkOverallCompletion(nextSolved);
+      } else {
+        // Palavra incorreta ( CrosswordBoard já toca sfx e treme )
+      }
+    }
+  };
+
+  // Acionada quando uma palavra é marcada como resolvida no CrosswordBoard
+  const handleWordSolved = (wordNum: number) => {
+    const nextSolved = [...solvedWords, wordNum];
+    setSolvedWords(nextSolved);
+    checkOverallCompletion(nextSolved);
+  };
+
+  // Checa se o tabuleiro todo foi completado com sucesso
+  const checkOverallCompletion = (currentSolved: number[]) => {
+    if (!currentLevelData) return;
+    if (currentSolved.length === currentLevelData.words.length) {
+      // Sucesso total da fase
+      handleLevelComplete();
+    }
+  };
+
+  // --- FINALIZA E CALCULA SCORE DA FASE ---
+  const handleLevelComplete = () => {
+    if (!currentLevelData || !currentLevelId) return;
+
+    soundManager.playSFX("fanfare");
+
+    const totalWords = currentLevelData.words.length;
+    const baseScore = totalWords * 100;
+    const scoreEstimate = Math.max(0, baseScore - hintsPenaltyPoints);
+
+    // Bônus
+    let timeBonus = 0;
+    if (timeSpent < 600) {
+      timeBonus = Math.floor((600 - timeSpent) * 1.2);
+    }
+    let perfectBonus = 0;
+    if (perfectRun && hintsUsedCount === 0) {
+      perfectBonus = 500;
+    }
+
+    const finalScore = scoreEstimate + timeBonus + perfectBonus;
+    const xpGained = Math.max(120, Math.floor(finalScore / 3));
+
+    // Estrelas
+    let starsWon = 1;
+    if (scoreEstimate >= baseScore * 0.9) starsWon = 3;
+    else if (scoreEstimate >= baseScore * 0.6) starsWon = 2;
+
+    // Atualiza progresso da fase
+    const previousRecord = unlockedLevels[currentLevelId] || { stars: 0, bestScore: 0 };
+    const nextRecord = {
+      stars: Math.max(previousRecord.stars, starsWon),
+      bestScore: Math.max(previousRecord.bestScore, finalScore),
+    };
+
+    const nextUnlockedLevels = {
+      ...unlockedLevels,
+      [currentLevelId]: nextRecord,
+    };
+    setUnlockedLevels(nextUnlockedLevels);
+
+    // Desbloqueia próxima fase
+    let nextHighest = highestUnlockedLevel;
+    if (currentLevelId === highestUnlockedLevel && currentLevelId < 50) {
+      nextHighest = currentLevelId + 1;
+      setHighestUnlockedLevel(nextHighest);
+    }
+
+    // Calcula XP e Level
+    let nextXP = playerXP + xpGained;
+    let nextLevel = playerLevel;
+    let currentNeeded = 1000 + (nextLevel - 1) * 300;
+    while (nextXP >= currentNeeded && nextLevel < 20) {
+      nextXP -= currentNeeded;
+      nextLevel++;
+      currentNeeded = 1000 + (nextLevel - 1) * 300;
+    }
+    setPlayerLevel(nextLevel);
+    setPlayerXP(nextXP);
+
+    // Moedas Ganhas
+    const coinsWon = 50 + starsWon * 10;
+    const nextCoins = coins + coinsWon;
+    setCoins(nextCoins);
+
+    // Estatísticas acumuladas
+    const isNewClear = previousRecord.bestScore === 0;
+    const nextLevelsCompleted = isNewClear ? levelsCompleted + 1 : levelsCompleted;
+    setLevelsCompleted(nextLevelsCompleted);
+    setTotalScore((s) => s + (nextRecord.bestScore - previousRecord.bestScore));
+
+    const nextStats = {
+      totalPlayTime: statistics.totalPlayTime + timeSpent,
+      perfectSolves: perfectBonus > 0 ? statistics.perfectSolves + 1 : statistics.perfectSolves,
+      totalHintsUsed: statistics.totalHintsUsed + hintsUsedCount,
+      totalExplanationsRead: statistics.totalExplanationsRead,
+      averageAccuracy: 100, // Calculado sob demanda no stats modal
+      totalPhasesPlayed: statistics.totalPhasesPlayed + 1,
+    };
+    setStatistics(nextStats);
+
+    // Guarda temporários para o verificador de conquistas
+    setLastHintsUsed(hintsUsedCount);
+    setLastTimeSpent(timeSpent);
+
+    // Checa conquistas unlocked
+    const tempState = {
+      levelsCompleted: nextLevelsCompleted,
+      playerLevel: nextLevel,
+      highestUnlockedLevel: nextHighest,
+      lastHintsUsed: hintsUsedCount,
+      lastTimeSpent: timeSpent,
+      totalExplanationsRead: statistics.totalExplanationsRead,
+    };
+
+    const nextAchievements = [...unlockedAchievements];
+    AchievementsList.forEach((ach) => {
+      if (!nextAchievements.includes(ach.id) && ach.condition(tempState)) {
+        nextAchievements.push(ach.id);
+        triggerToast(ach.title, ach.icon);
+      }
+    });
+    setUnlockedAchievements(nextAchievements);
+
+    // Salva tudo
+    saveProgress({
+      level: nextLevel,
+      xp: nextXP,
+      coins: nextCoins,
+      highestLevel: nextHighest,
+      levelsComp: nextLevelsCompleted,
+      totScore: totalScore + (nextRecord.bestScore - previousRecord.bestScore),
+      unlockedLvl: nextUnlockedLevels,
+      unlockedAch: nextAchievements,
+      stats: nextStats,
+    });
+
+    setScreen("end");
+  };
+
+  // Exibe toast flutuante temporário
+  const triggerToast = (title: string, icon: string) => {
+    soundManager.playSFX("correct");
+    const id = Math.random().toString();
+    setToasts((t) => [...t, { id, title, icon }]);
+    setTimeout(() => {
+      setToasts((t) => t.filter((toast) => toast.id !== id));
+    }, 4000);
+  };
+
+  // --- SISTEMA DE DICAS ---
+  const handleApplyHint = (type: "letter" | "half" | "explain" | "solve") => {
+    if (!activeWord || !currentLevelData) return;
+
+    const costs = { letter: 10, half: 30, explain: 5, solve: 50 };
+    const cost = costs[type];
+
+    if (coins < cost) {
+      triggerToast("Moedas insuficientes!", "🪙");
+      soundManager.playSFX("error");
+      return;
+    }
+
+    const nextCoins = coins - cost;
+    setCoins(nextCoins);
+    saveProgress({ coins: nextCoins });
+
+    if (type === "letter") {
+      // Revela a letra atual focada
+      if (!focusedCell) return;
+      const { x, y } = focusedCell;
+      const cellInfo = currentLevelData.grid[y][x];
+      if (!cellInfo || !cellInfo.words.includes(activeWord.number)) return;
+
+      const charIdx = activeWord.dir === "H" ? x - activeWord.x : y - activeWord.y;
+      const correctChar = generatorRef.current.normalize(activeWord.word)[charIdx];
+
+      const key = `${x},${y}`;
+      if (inputs[key] !== correctChar) {
+        soundManager.playSFX("click");
+        const nextInputs = { ...inputs, [key]: correctChar };
+        setInputs(nextInputs);
+        setHintsPenaltyPoints((p) => p + 10);
+        setHintsUsedCount((c) => c + 1);
+        setPerfectRun(false);
+
+        checkWordCompleteness(activeWord, nextInputs);
+      }
+    } else if (type === "half") {
+      // Revela metade da palavra (posições pares)
+      soundManager.playSFX("click");
+      const nextInputs = { ...inputs };
+      let changed = false;
+
+      for (let i = 0; i < activeWord.word.length; i++) {
+        if (i % 2 === 0) {
+          const cx = activeWord.x + (activeWord.dir === "H" ? i : 0);
+          const cy = activeWord.y + (activeWord.dir === "V" ? i : 0);
+          const correctChar = generatorRef.current.normalize(activeWord.word)[i];
+          const key = `${cx},${cy}`;
+
+          if (inputs[key] !== correctChar) {
+            nextInputs[key] = correctChar;
+            changed = true;
+          }
+        }
+      }
+
+      if (changed) {
+        setInputs(nextInputs);
+        setHintsPenaltyPoints((p) => p + 30);
+        setHintsUsedCount((c) => c + 1);
+        setPerfectRun(false);
+
+        checkWordCompleteness(activeWord, nextInputs);
+      }
+    } else if (type === "explain") {
+      // Exibe explicação científica detalhada
+      soundManager.playSFX("click");
+      setExplanationActive(true);
+      setHintsPenaltyPoints((p) => p + 5);
+      setHintsUsedCount((c) => c + 1);
+      
+      const nextStats = {
+        ...statistics,
+        totalExplanationsRead: statistics.totalExplanationsRead + 1,
+      };
+      setStatistics(nextStats);
+      saveProgress({ stats: nextStats });
+    } else if (type === "solve") {
+      // Resolve a palavra inteira
+      soundManager.playSFX("click");
+      const nextInputs = { ...inputs };
+      let changed = false;
+
+      for (let i = 0; i < activeWord.word.length; i++) {
+        const cx = activeWord.x + (activeWord.dir === "H" ? i : 0);
+        const cy = activeWord.y + (activeWord.dir === "V" ? i : 0);
+        const correctChar = generatorRef.current.normalize(activeWord.word)[i];
+        const key = `${cx},${cy}`;
+
+        if (inputs[key] !== correctChar) {
+          nextInputs[key] = correctChar;
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        setInputs(nextInputs);
+        setHintsPenaltyPoints((p) => p + 50);
+        setHintsUsedCount((c) => c + 1);
+        setPerfectRun(false);
+
+        // Marca como correta
+        const nextSolved = [...solvedWords, activeWord.number];
+        setSolvedWords(nextSolved);
+        checkOverallCompletion(nextSolved);
+      }
+    }
+  };
+
+  const getCluesOfDirection = (dir: "H" | "V") => {
+    if (!currentLevelData) return [];
+    return currentLevelData.words.filter((w) => w.dir === dir);
+  };
+
+  const getEstimatedScore = () => {
+    if (!currentLevelData) return 0;
+    return Math.max(0, currentLevelData.words.length * 100 - hintsPenaltyPoints);
+  };
+
+  // Retorna rank formatado
+  const getRank = (level: number) => {
+    if (level >= 15) return "Doutor em Odontologia";
+    if (level >= 10) return "Mestre Clínico";
+    if (level >= 7) return "Cirurgião-Dentista";
+    if (level >= 4) return "Residente Odonto";
+    return "Estudante Clínico";
+  };
+
+  return (
+    <div className="flex flex-col min-h-screen text-slate-100 bg-gradient-to-b from-[#0a1122] to-[#040810] selection:bg-dentist-500 selection:text-white">
+      {/* Glow de fundo */}
+      <div className="fixed inset-0 pointer-events-none z-0 bg-[radial-gradient(circle_at_15%_15%,rgba(20,163,181,0.12),transparent_45%)]" />
+
+      {/* CABEÇALHO GLOBAL */}
+      <header className="glass-panel border-b border-darkbg-border py-4 px-6 sticky top-0 z-30 flex justify-between items-center backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          {/* Menu Hambúrguer */}
+          <button
+            onClick={() => {
+              soundManager.playSFX("click");
+              if (screen === "game") setPauseOpen(true);
+              else setScreen("levels");
+            }}
+            className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-white transition-colors"
+          >
+            <Menu size={20} />
+          </button>
+          
+          <div
+            onClick={() => {
+              soundManager.playSFX("click");
+              setScreen("home");
+            }}
+            className="flex items-center gap-2 cursor-pointer select-none"
+          >
+            <h1 className="font-black text-lg md:text-xl tracking-wider text-dentist-400 uppercase">
+              OdontoCruzada
+            </h1>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Alternar Tema */}
+          <button
+            onClick={() => {
+              soundManager.playSFX("click");
+              setTheme(theme === "dark" ? "light" : "dark");
+            }}
+            className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-white transition-all duration-200"
+          >
+            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+
+          {/* Configurações */}
+          <button
+            onClick={() => {
+              soundManager.playSFX("click");
+              setSettingsOpen(true);
+            }}
+            className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-white transition-colors"
+          >
+            <SettingsIcon size={20} />
+          </button>
+        </div>
+      </header>
+
+      {/* CONTEÚDO PRINCIPAL COM TRANSIÇÕES */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 z-10 relative flex flex-col justify-center">
+        {/* TOASTS DE CONQUISTAS */}
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              className="bg-slate-900 border border-amber-500/40 p-4 rounded-xl flex items-center gap-3 shadow-2xl animate-fade-in pointer-events-auto"
+            >
+              <span className="text-2xl">{t.icon}</span>
+              <div>
+                <h5 className="font-extrabold text-sm text-slate-100">
+                  Conquista Desbloqueada!
+                </h5>
+                <p className="text-xs text-slate-400 font-semibold">{t.title}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* TELA DE BOAS-VINDAS / HOME */}
+        {screen === "home" && (
+          <div className="flex flex-col items-center text-center gap-8 max-w-4xl mx-auto w-full py-6 animate-fade-in">
+            {/* Mascot and Title Wrapper */}
+            <div className="flex flex-col md:flex-row items-center justify-center gap-8 w-full">
+              {/* Mascot Tooth */}
+              <div className="relative w-48 h-48 md:w-60 md:h-60 shrink-0 select-none animate-bounce-slow">
+                <div className="absolute inset-0 bg-gradient-to-tr from-dentist-500/20 to-emerald-500/20 blur-2xl rounded-full" />
+                <img
+                  src="/mascot.png"
+                  alt="Mascote OdontoCruzada"
+                  className="w-full h-full object-contain relative z-10 filter drop-shadow-[0_10px_15px_rgba(20,163,181,0.35)]"
+                />
+              </div>
+
+              {/* Title & Description */}
+              <div className="flex flex-col items-center md:items-start text-center md:text-left gap-4 max-w-lg">
+                <div className="flex flex-col">
+                  <h2 className="text-4xl sm:text-5xl font-black tracking-tight text-slate-100 uppercase">
+                    Odonto<span className="text-dentist-400">Cruzada</span>
+                  </h2>
+                  <p className="text-slate-400 text-xs sm:text-sm uppercase tracking-widest font-extrabold mt-1">
+                    O desafio do conhecimento em odontologia
+                  </p>
+                </div>
+                
+                <p className="text-slate-300 text-sm leading-relaxed font-medium">
+                  OdontoCruzada é o jogo de palavras cruzadas cirúrgico com 50 níveis e mais de 500 palavras em português. Pratique anatomia, procedimentos cirúrgicos, materiais restauradores e periodontia com explicações clínicas detalhadas a cada acerto!
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-3 w-full mt-2">
+                  <button
+                    onClick={() => {
+                      soundManager.playSFX("click");
+                      handleStartLevel(highestUnlockedLevel);
+                    }}
+                    className="flex-1 h-14 bg-gradient-to-tr from-dentist-600 to-dentist-400 hover:from-dentist-500 hover:to-dentist-300 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-btn-primary transition-all hover:scale-[1.02]"
+                  >
+                    <Play size={20} className="fill-white" />
+                    Jogar Agora
+                  </button>
+                  <button
+                    onClick={() => {
+                      soundManager.playSFX("click");
+                      setScreen("levels");
+                    }}
+                    className="flex-1 h-14 bg-slate-800/80 hover:bg-slate-700 text-slate-100 border border-slate-700 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
+                  >
+                    Escolher Fase
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Badges de Destaque da Imagem Piloto */}
+            <div className="grid grid-cols-3 gap-4 w-full max-w-2xl mt-4 pt-6 border-t border-darkbg-border">
+              <div className="glass-panel p-4 rounded-2xl flex flex-col items-center gap-2 border border-darkbg-border bg-slate-800/30">
+                <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center">
+                  <GraduationCap size={24} />
+                </div>
+                <span className="text-xs font-bold text-slate-200">Aprenda</span>
+              </div>
+              
+              <div className="glass-panel p-4 rounded-2xl flex flex-col items-center gap-2 border border-darkbg-border bg-slate-800/30">
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center">
+                  <Brain size={24} />
+                </div>
+                <span className="text-xs font-bold text-slate-200">Desafie</span>
+              </div>
+
+              <div className="glass-panel p-4 rounded-2xl flex flex-col items-center gap-2 border border-darkbg-border bg-slate-800/30">
+                <div className="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center justify-center">
+                  <Trophy size={24} />
+                </div>
+                <span className="text-xs font-bold text-slate-200">Conquiste</span>
+              </div>
+            </div>
+
+            {/* Painel de Perfil Rápido */}
+            <div className="glass-panel p-5 rounded-2xl flex flex-col sm:flex-row items-center gap-5 w-full max-w-2xl border border-darkbg-border mt-2 bg-slate-800/10">
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-slate-800 border border-slate-700 text-dentist-400 flex items-center justify-center shadow-inner">
+                  <Award size={22} />
+                </div>
+                <div className="text-left">
+                  <h3 className="font-extrabold text-sm text-slate-100">Cirurgião Estudante</h3>
+                  <span className="text-[10px] text-dentist-400 font-extrabold uppercase tracking-wider block">
+                    {getRank(playerLevel)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Barra de XP */}
+              <div className="flex-1 flex flex-col gap-1 w-full">
+                <div className="flex justify-between text-[11px] font-bold text-slate-300">
+                  <span>Nível {playerLevel}</span>
+                  <span>{playerXP} / {xpNeeded} XP</span>
+                </div>
+                <div className="w-full h-2.5 rounded-full bg-slate-900 border border-darkbg-border overflow-hidden p-0.5">
+                  <div
+                    style={{ width: `${Math.min(100, (playerXP / xpNeeded) * 100)}%` }}
+                    className="h-full bg-gradient-to-r from-dentist-600 to-dentist-400 rounded-full transition-all duration-500"
+                  />
+                </div>
+              </div>
+
+              {/* Estatísticas Rápidas */}
+              <div className="flex gap-4 shrink-0 font-bold text-xs text-slate-300">
+                <div>
+                  <span className="text-[9px] text-slate-500 uppercase block tracking-wider">Fases Feitas</span>
+                  <span className="text-dentist-400 text-sm font-black">{levelsCompleted}/50</span>
+                </div>
+                <div className="border-l border-darkbg-border pl-4">
+                  <span className="text-[9px] text-slate-500 uppercase block tracking-wider">Score Total</span>
+                  <span className="text-dentist-400 text-sm font-black">{totalScore}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TELA DE SELEÇÃO DE FASES */}
+        {screen === "levels" && (
+          <div className="flex flex-col gap-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-extrabold text-slate-100 tracking-tight">
+                Selecione uma Fase
+              </h2>
+              <button
+                onClick={() => {
+                  soundManager.playSFX("click");
+                  setScreen("home");
+                }}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl font-bold text-sm"
+              >
+                Voltar ao Menu
+              </button>
+            </div>
+
+            <LevelGrid
+              highestUnlockedLevel={highestUnlockedLevel}
+              unlockedLevels={unlockedLevels}
+              onSelectLevel={handleStartLevel}
+            />
+          </div>
+        )}
+
+        {/* TELA DE GAMEPLAY ATIVA */}
+        {screen === "game" && currentLevelData && currentLevelId && (
+          <div className="flex flex-col gap-4">
+            {/* Header da Fase */}
+            <div className="glass-panel p-4 rounded-2xl flex flex-wrap gap-4 items-center justify-between shadow-md border border-darkbg-border">
+              <div>
+                <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
+                  Fase {currentLevelId} - {OdontoDatabase.find(l => l.id === currentLevelId)?.category}
+                </span>
+                <h3 className="font-extrabold text-slate-100 text-base md:text-lg leading-tight mt-0.5">
+                  {OdontoDatabase.find(l => l.id === currentLevelId)?.title}
+                </h3>
+              </div>
+
+              {/* Status do Jogo */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 font-mono text-sm font-bold bg-slate-800 py-1.5 px-3 rounded-xl border border-darkbg-border">
+                  <Clock size={15} className="text-amber-500 animate-pulse" />
+                  {Math.floor(timeSpent / 60)
+                    .toString()
+                    .padStart(2, "0")}
+                  :{(timeSpent % 60).toString().padStart(2, "0")}
+                </div>
+
+                <div className="flex items-center gap-1.5 text-sm font-bold bg-slate-800 py-1.5 px-3 rounded-xl border border-darkbg-border">
+                  <Star size={15} className="fill-amber-400 text-amber-400" />
+                  <span>{getEstimatedScore()}</span>
+                </div>
+
+                <div className="text-xs font-bold text-slate-300 hidden sm:block">
+                  {solvedWords.length} / {currentLevelData.words.length} Palavras
+                </div>
+
+                <button
+                  onClick={() => {
+                    soundManager.playSFX("click");
+                    setPauseOpen(true);
+                  }}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 border border-slate-700 text-slate-300 hover:border-dentist-500 hover:text-white"
+                >
+                  Pausar
+                </button>
+              </div>
+            </div>
+
+            {/* Barra de Perfil e Progresso do Nível */}
+            <div className="flex items-center gap-3 w-full bg-slate-800/40 border border-darkbg-border p-3 rounded-2xl">
+              <span className="bg-dentist-500 text-white font-black text-[10px] px-3 py-1 rounded-full shadow-md whitespace-nowrap">
+                NÍVEL {playerLevel}
+              </span>
+              <div className="flex-1 h-3 bg-slate-900/60 rounded-full p-0.5 overflow-hidden border border-slate-800">
+                <div
+                  style={{ width: `${Math.min(100, (playerXP / xpNeeded) * 100)}%` }}
+                  className="h-full bg-gradient-to-r from-dentist-600 to-dentist-400 rounded-full transition-all duration-500"
+                />
+              </div>
+              <span className="text-[11px] font-black text-slate-300">
+                {Math.round((playerXP / xpNeeded) * 100)}%
+              </span>
+            </div>
+
+            {/* Layout Lateral: Grade + Dicas */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Tabuleiro (Esquerda) */}
+              <div className="lg:col-span-8 flex flex-col gap-4">
+                {/* Tabuleiro Físico */}
+                <div className="glass-panel rounded-2xl overflow-hidden border border-darkbg-border flex items-center justify-center min-h-[350px] bg-slate-950/40 relative">
+                  <CrosswordBoard
+                    data={currentLevelData}
+                    activeWord={activeWord}
+                    onSelectWord={setActiveWord}
+                    focusedCell={focusedCell}
+                    onFocusCell={setFocusedCell}
+                    inputs={inputs}
+                    onChangeInputs={setInputs}
+                    solvedWords={solvedWords}
+                    onWordSolved={handleWordSolved}
+                  />
+                </div>
+
+                {/* Floating Snap Active Clue Banner (Mockup Pilot Style) */}
+                {activeWord && (
+                  <div className="glass-panel p-4 rounded-2xl border border-dentist-500/40 bg-slate-800/60 shadow-lg flex items-center justify-between gap-3 animate-fade-in">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm text-white shrink-0 shadow-md ${
+                        activeWord.dir === "H" ? "bg-emerald-500" : "bg-dentist-500"
+                      }`}>
+                        {activeWord.number}
+                        {activeWord.dir === "H" ? "→" : "↓"}
+                      </div>
+                      <p className="text-xs sm:text-sm font-extrabold text-slate-100 leading-normal">
+                        {activeWord.clue}
+                      </p>
+                    </div>
+                    
+                    {/* Botão de Explicação Clínica */}
+                    <button
+                      onClick={() => handleApplyHint("explain")}
+                      className="w-10 h-10 rounded-xl bg-dentist-500/10 border border-dentist-500/30 text-dentist-400 flex items-center justify-center hover:bg-dentist-500 hover:text-white transition-colors"
+                      title="Aula Rápida / Ver Explicação"
+                    >
+                      <Lightbulb size={20} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Barra de Ações do Piloto */}
+                <div className="grid grid-cols-4 gap-2.5 w-full p-2.5 bg-slate-800/20 rounded-2xl border border-darkbg-border shadow-inner">
+                  <button
+                    onClick={() => handleApplyHint("letter")}
+                    className="flex flex-col items-center justify-center gap-1.5 py-2.5 bg-slate-800/70 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700/50 transition-colors shadow-sm"
+                  >
+                    <Lightbulb size={18} className="text-amber-400 fill-amber-400/10" />
+                    <span className="text-[10px] font-black uppercase tracking-wider">Dica</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      if (focusedCell) {
+                        const newInputs = { ...inputs, [`${focusedCell.x},${focusedCell.y}`]: "" };
+                        setInputs(newInputs);
+                        soundManager.playSFX("click");
+                      }
+                    }}
+                    className="flex flex-col items-center justify-center gap-1.5 py-2.5 bg-slate-800/70 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700/50 transition-colors shadow-sm"
+                  >
+                    <Eraser size={18} className="text-red-400" />
+                    <span className="text-[10px] font-black uppercase tracking-wider">Apagar</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      soundManager.playSFX("click");
+                      if (currentLevelData) {
+                        let allCorrect = true;
+                        currentLevelData.words.forEach((w) => {
+                          let typed = "";
+                          for (let i = 0; i < w.word.length; i++) {
+                            const cx = w.x + (w.dir === "H" ? i : 0);
+                            const cy = w.y + (w.dir === "V" ? i : 0);
+                            typed += inputs[`${cx},${cy}`] || "";
+                          }
+                          if (typed !== w.word) allCorrect = false;
+                        });
+                        if (allCorrect) {
+                          handleLevelComplete();
+                        } else {
+                          soundManager.playSFX("error");
+                          triggerToast("Existem erros ou palavras incompletas!", "❌");
+                        }
+                      }
+                    }}
+                    className="flex flex-col items-center justify-center gap-1.5 py-2.5 bg-slate-800/70 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700/50 transition-colors shadow-sm"
+                  >
+                    <CheckCircle size={18} className="text-emerald-400" />
+                    <span className="text-[10px] font-black uppercase tracking-wider">Verificar</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      soundManager.playSFX("click");
+                      setInputs({});
+                      setSolvedWords([]);
+                    }}
+                    className="flex flex-col items-center justify-center gap-1.5 py-2.5 bg-slate-800/70 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700/50 transition-colors shadow-sm"
+                  >
+                    <RotateCcw size={18} className="text-blue-400" />
+                    <span className="text-[10px] font-black uppercase tracking-wider">Reiniciar</span>
+                  </button>
+                </div>
+
+                {/* Painel Educacional Dinâmico */}
+                {explanationActive && activeWord && (
+                  <div className="glass-panel p-4 rounded-xl border border-emerald-500 bg-emerald-500/5 animate-fade-in flex flex-col gap-1.5">
+                    <span className="text-[10px] text-emerald-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
+                      <CheckSquare size={12} /> Aula Rápida: {activeWord.word}
+                    </span>
+                    <p className="text-xs md:text-sm font-semibold text-slate-200 leading-relaxed">
+                      {activeWord.explanation}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Dicas e Perguntas Globais (Direita) */}
+              <div className="lg:col-span-4 flex flex-col gap-4">
+                {/* Mascote Interativo de Dicas (CodyCross/Duolingo Style) */}
+                <div className="glass-panel p-4 rounded-2xl border border-darkbg-border flex items-center gap-3 bg-gradient-to-tr from-slate-900/60 to-dentist-950/20 shadow-md">
+                  <img
+                    src="/mascot.png"
+                    alt="Mascote"
+                    className="w-12 h-12 object-contain shrink-0 animate-bounce-slow"
+                  />
+                  <div className="relative bg-slate-800/85 border border-slate-700/50 p-2.5 rounded-xl text-left">
+                    <div className="absolute right-full top-1/2 -translate-y-1/2 border-[6px] border-transparent border-r-slate-850" />
+                    <p className="text-[11px] font-bold text-slate-200 leading-normal">
+                      {mascotTip}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Painel Geral de Listagem de Dicas */}
+                <div className="glass-panel p-4 rounded-2xl border border-darkbg-border flex flex-col gap-3.5 max-h-[480px]">
+                  <h4 className="font-extrabold text-sm text-slate-100 flex items-center gap-2">
+                    Dicas Clínicas
+                  </h4>
+                  
+                  {/* Dicas Horizontais */}
+                  <div className="flex flex-col gap-2 overflow-y-auto pr-1 flex-1">
+                    <h5 className="font-extrabold text-xs text-dentist-400 uppercase tracking-wider">
+                      Horizontais
+                    </h5>
+                    <div className="flex flex-col gap-1.5">
+                      {getCluesOfDirection("H").map((w) => (
+                        <ClueItem
+                          key={w.number}
+                          word={w}
+                          isSelected={activeWord?.number === w.number}
+                          isSolved={solvedWords.includes(w.number)}
+                          onClick={() => {
+                            soundManager.playSFX("click");
+                            setActiveWord(w);
+                            setFocusedCell({ x: w.x, y: w.y });
+                          }}
+                        />
+                      ))}
+                    </div>
+
+                    <h5 className="font-extrabold text-xs text-dentist-400 uppercase tracking-wider mt-4">
+                      Verticais
+                    </h5>
+                    <div className="flex flex-col gap-1.5">
+                      {getCluesOfDirection("V").map((w) => (
+                        <ClueItem
+                          key={w.number}
+                          word={w}
+                          isSelected={activeWord?.number === w.number}
+                          isSolved={solvedWords.includes(w.number)}
+                          onClick={() => {
+                            soundManager.playSFX("click");
+                            setActiveWord(w);
+                            setFocusedCell({ x: w.x, y: w.y });
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Teclado Virtual Mobile */}
+            <VirtualKeyboard onKeyPress={handleKeyboardInput} visible={screen === "game"} />
+          </div>
+        )}
+
+        {/* TELA DE FIM DE FASE (VITÓRIA) */}
+        {screen === "end" && currentLevelId && (
+          <>
+            {/* Efeito de Confetes */}
+            <Confetti />
+
+            <div className="max-w-md w-full mx-auto glass-panel p-8 rounded-3xl shadow-2xl border border-darkbg-border flex flex-col items-center gap-6 text-center animate-fade-in relative z-20">
+              {/* Mascote Comemorando */}
+              <div className="relative w-32 h-32 select-none animate-bounce-slow">
+                <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/20 to-dentist-500/20 blur-xl rounded-full animate-pulse" />
+                <img
+                  src="/mascot.png"
+                  alt="Mascote Comemorando"
+                  className="w-full h-full object-contain relative z-10 filter drop-shadow-[0_8px_16px_rgba(245,158,11,0.35)]"
+                />
+              </div>
+
+              <div>
+                <h2 className="text-2xl font-black text-slate-100 uppercase tracking-wide">Fase Concluída!</h2>
+                <p className="text-xs text-emerald-400 mt-1 font-extrabold uppercase tracking-widest">
+                  Excelente trabalho clínico!
+                </p>
+              </div>
+
+              {/* Estrelas com Brilho */}
+              <div className="flex gap-3">
+                {[1, 2, 3].map((s) => (
+                  <Star
+                    key={s}
+                    size={36}
+                    className="fill-amber-400 text-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.6)] animate-pulse"
+                  />
+                ))}
+              </div>
+
+              {/* Resumo da Partida (Wordscapes/Duolingo Style) */}
+              <div className="grid grid-cols-2 gap-3 w-full border-t border-b border-darkbg-border py-4">
+                <div className="text-center p-2 rounded-xl bg-slate-900/40">
+                  <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider block">Tempo</span>
+                  <strong className="text-slate-100 text-base font-black">
+                    {Math.floor(timeSpent / 60)}m {timeSpent % 60}s
+                  </strong>
+                </div>
+                <div className="text-center p-2 rounded-xl bg-slate-900/40">
+                  <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider block">XP Ganho</span>
+                  <strong className="text-slate-100 text-base font-black">
+                    +{Math.max(120, Math.floor((currentLevelData?.words.length || 5) * 30))}
+                  </strong>
+                </div>
+                <div className="text-center p-2 rounded-xl bg-slate-900/40 col-span-2 flex justify-between items-center px-4 mt-1 border border-amber-500/10 bg-amber-500/5">
+                  <span className="text-[9px] text-amber-500 font-extrabold uppercase tracking-wider">Moedas Recebidas</span>
+                  <strong className="text-amber-400 text-sm font-black flex items-center gap-1">
+                    🪙 +{50 + (unlockedLevels[currentLevelId]?.stars || 1) * 10}
+                  </strong>
+                </div>
+              </div>
+
+              {/* Barra de XP de Fim de Jogo */}
+            <div className="w-full flex flex-col gap-1.5">
+              <div className="flex justify-between text-xs font-bold text-slate-300">
+                <span>Nível {playerLevel}</span>
+                <span>{playerXP} / {xpNeeded} XP</span>
+              </div>
+              <div className="w-full h-3 rounded-full bg-slate-800 border border-darkbg-border overflow-hidden p-0.5">
+                <div
+                  style={{ width: `${Math.min(100, (playerXP / xpNeeded) * 100)}%` }}
+                  className="h-full bg-gradient-to-r from-dentist-600 to-dentist-400 rounded-full transition-all duration-500"
+                />
+              </div>
+            </div>
+
+            {/* Ações */}
+            <div className="flex flex-col sm:flex-row gap-2 w-full">
+              <button
+                onClick={() => {
+                  soundManager.playSFX("click");
+                  setScreen("home");
+                }}
+                className="flex-1 h-12 bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5"
+              >
+                <Home size={16} /> Menu
+              </button>
+              <button
+                onClick={() => {
+                  soundManager.playSFX("click");
+                  if (currentLevelId < 50) {
+                    handleStartLevel(currentLevelId + 1);
+                  } else {
+                    setScreen("home");
+                  }
+                }}
+                className="flex-1 h-12 bg-dentist-500 hover:bg-dentist-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 shadow-btn-primary"
+              >
+                Próxima Fase <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+      </main>
+
+      {/* ================= MODAIS DE INTERACTION ================= */}
+
+      {/* MODAL CONFIGURAÇÕES */}
+      {settingsOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="glass-panel p-6 rounded-2xl max-w-sm w-full border border-darkbg-border flex flex-col gap-4 animate-fade-in">
+            <div className="flex justify-between items-center">
+              <h3 className="font-extrabold text-slate-100 flex items-center gap-2">
+                <SettingsIcon size={18} /> Configurações
+              </h3>
+              <button
+                onClick={() => {
+                  soundManager.playSFX("click");
+                  setSettingsOpen(false);
+                }}
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-100"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h4 className="font-bold text-xs sm:text-sm text-slate-100">Efeitos Sonoros</h4>
+                  <p className="text-[10px] text-slate-400">Tons de acerto, erro e digitação</p>
+                </div>
+                <button
+                  onClick={() => {
+                    const nextVal = !sfxOn;
+                    setSfxOn(nextVal);
+                    soundManager.isSFXEnabled = nextVal;
+                    localStorage.setItem("odontocross_settings", JSON.stringify({ musicOn, sfxOn: nextVal }));
+                    soundManager.playSFX("click");
+                  }}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                    sfxOn ? "bg-dentist-500 text-white" : "bg-slate-800 text-slate-500 border border-slate-700"
+                  }`}
+                >
+                  {sfxOn ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                </button>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <div>
+                  <h4 className="font-bold text-xs sm:text-sm text-slate-100">Música Ambiente</h4>
+                  <p className="text-[10px] text-slate-400">Trilha relaxante gerada via sintetizador</p>
+                </div>
+                <button
+                  onClick={() => {
+                    const nextVal = !musicOn;
+                    setMusicOn(nextVal);
+                    soundManager.toggleMusic(nextVal && screen !== "home");
+                    localStorage.setItem("odontocross_settings", JSON.stringify({ musicOn: nextVal, sfxOn }));
+                    soundManager.playSFX("click");
+                  }}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                    musicOn ? "bg-dentist-500 text-white" : "bg-slate-800 text-slate-500 border border-slate-700"
+                  }`}
+                >
+                  <Music size={18} />
+                </button>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                soundManager.playSFX("click");
+                setSettingsOpen(false);
+              }}
+              className="w-full h-11 bg-dentist-500 hover:bg-dentist-600 text-white font-bold rounded-xl text-sm shadow-btn-primary"
+            >
+              Concluído
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PAUSA */}
+      {pauseOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="glass-panel p-6 rounded-2xl max-w-sm w-full border border-darkbg-border flex flex-col gap-4 text-center animate-fade-in">
+            <h3 className="font-extrabold text-slate-100 text-lg">Jogo Pausado</h3>
+            <p className="text-xs text-slate-400">O cronômetro está parado.</p>
+
+            <div className="flex flex-col gap-2 mt-2">
+              <button
+                onClick={() => {
+                  soundManager.playSFX("click");
+                  setPauseOpen(false);
+                }}
+                className="w-full h-11 bg-dentist-500 hover:bg-dentist-600 text-white font-bold rounded-xl text-sm shadow-btn-primary"
+              >
+                Retomar Partida
+              </button>
+              <button
+                onClick={() => {
+                  soundManager.playSFX("click");
+                  setPauseOpen(false);
+                  if (currentLevelId) handleStartLevel(currentLevelId);
+                }}
+                className="w-full h-11 bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 font-bold rounded-xl text-sm flex items-center justify-center gap-1.5"
+              >
+                <RotateCcw size={16} /> Reiniciar Fase
+              </button>
+              <button
+                onClick={() => {
+                  soundManager.playSFX("click");
+                  setPauseOpen(false);
+                  setScreen("home");
+                }}
+                className="w-full h-11 bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 font-bold rounded-xl text-sm"
+              >
+                Ir para o Menu Inicial
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CONQUISTAS */}
+      {achievementsOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="glass-panel p-6 rounded-2xl max-w-xl w-full border border-darkbg-border flex flex-col gap-4 animate-fade-in">
+            <div className="flex justify-between items-center">
+              <h3 className="font-extrabold text-slate-100 flex items-center gap-2">
+                <Award size={18} className="text-amber-500" /> Suas Conquistas
+              </h3>
+              <button
+                onClick={() => {
+                  soundManager.playSFX("click");
+                  setAchievementsOpen(false);
+                }}
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-100"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <AchievementsPanel
+              unlockedAchievements={unlockedAchievements}
+              onClose={() => setAchievementsOpen(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ESTATÍSTICAS DETALHADAS */}
+      {statsOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="glass-panel p-6 rounded-2xl max-w-xl w-full border border-darkbg-border flex flex-col gap-4 animate-fade-in">
+            <div className="flex justify-between items-center">
+              <h3 className="font-extrabold text-slate-100 flex items-center gap-2">
+                <BarChart2 size={18} className="text-dentist-400" /> Relatório Clínico
+              </h3>
+              <button
+                onClick={() => {
+                  soundManager.playSFX("click");
+                  setStatsOpen(false);
+                }}
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-100"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <StatsPanel statistics={statistics} unlockedLevels={unlockedLevels} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

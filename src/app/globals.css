@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply min-h-screen font-sans antialiased transition-colors duration-300;
+  }
+}
+
+/* Scrollbars Modernas */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.2);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 128, 128, 0.4);
+}
+
+/* Efeito de Vidro (Glassmorphism) */
+.glass-panel {
+  @apply backdrop-blur-md bg-opacity-70 border border-opacity-10;
+  background-color: var(--glass-bg, rgba(20, 26, 38, 0.65));
+  border-color: var(--glass-border, rgba(255, 255, 255, 0.08));
+}
+
+.theme-light .glass-panel {
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(0, 0, 0, 0.06);
+}
+
+/* Efeito de Tremedeira (Shake) para Erros */
+.shake-element {
+  animation: shake 0.3s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+/* Animação para Revelação Correta */
+@keyframes cellCorrectPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); box-shadow: 0 0 12px hsl(142, 70%, 45%); }
+  100% { transform: scale(1); }
+}
+
+.correct-pulse {
+  animation: cellCorrectPulse 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Glow para botões principais */
+.shadow-btn-primary {
+  box-shadow: 0 4px 14px rgba(20, 163, 181, 0.35);
+}
+
+.shadow-btn-primary:hover {
+  box-shadow: 0 6px 20px rgba(20, 163, 181, 0.5);
+}
+
+/* Animação Flutuante Lenta para Mascote */
+@keyframes bounceSlow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-bounce-slow {
+  animation: bounceSlow 3.5s ease-in-out infinite;
+}
