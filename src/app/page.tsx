@@ -212,8 +212,6 @@ export default function HomeRoot() {
     };
   }, [screen, pauseOpen]);
 
-  if (!isLoaded) return null;
-
   const xpNeeded = 1000 + (playerLevel - 1) * 300;
 
   // --- INICIA UMA FASE ---
@@ -778,6 +776,8 @@ export default function HomeRoot() {
     if (level >= 4) return "Residente Odonto";
     return "Estudante Clínico";
   };
+
+  if (!isLoaded) return null;
 
   return (
     <div className={`h-screen w-screen overflow-hidden flex flex-col selection:bg-dentist-500 selection:text-white transition-colors duration-300 ${
