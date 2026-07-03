@@ -219,6 +219,43 @@ export default function HomeRoot() {
     const level = OdontoDatabase.find((l) => l.id === levelId);
     if (!level) return;
 
+    // Geração procedural da grade
+    const generated = generatorRef.current.generate(level.words);
+    if (!generated) {
+      alert("Falha ao gerar grade procedural. Tente novamente.");
+      return;
+    }
+
+    setCurrentLevelData(generated);
+    setScreen("game");
+
+    // Verifica se tem um jogo salvo correspondente a esta fase para retomar!
+    const activeGameStr = localStorage.getItem("odontocross_active_game");
+    if (activeGameStr) {
+      try {
+        const activeGame = JSON.parse(activeGameStr);
+        if (activeGame.levelId === levelId) {
+          // Retoma o estado salvo!
+          setCurrentLevelId(levelId);
+          setInputs(activeGame.inputs || {});
+          setSolvedWords(activeGame.solvedWords || []);
+          setTimeSpent(activeGame.timeSpent || 0);
+          setPerfectRun(activeGame.perfectRun ?? true);
+          setHintsPenaltyPoints(activeGame.hintsPenaltyPoints || 0);
+          setHintsUsedCount(activeGame.hintsUsedCount || 0);
+          
+          // Seleciona a primeira palavra não resolvida
+          const firstUnsolved = generated.words.find(w => !activeGame.solvedWords.includes(w.number)) || generated.words[0];
+          setActiveWord(firstUnsolved);
+          setFocusedCell({ x: firstUnsolved.x, y: firstUnsolved.y });
+          return;
+        }
+      } catch (e) {
+        console.error("Erro ao retomar jogo salvo:", e);
+      }
+    }
+
+    // Inicialização padrão do zero (se não há jogo salvo ou é de outra fase)
     setCurrentLevelId(levelId);
     setTimeSpent(0);
     setHintsPenaltyPoints(0);
@@ -231,22 +268,27 @@ export default function HomeRoot() {
     setExplanationActive(false);
     setHintMenuOpen(false);
 
-    // Geração procedural da grade
-    const generated = generatorRef.current.generate(level.words);
-    if (!generated) {
-      alert("Falha ao gerar grade procedural. Tente novamente.");
-      return;
-    }
-
-    setCurrentLevelData(generated);
-    setScreen("game");
-
     // Seleciona a primeira palavra
     if (generated.words.length > 0) {
       setActiveWord(generated.words[0]);
       setFocusedCell({ x: generated.words[0].x, y: generated.words[0].y });
     }
   };
+
+  // --- SALVA O ESTADO DA PARTIDA ATIVA EM TEMPO REAL ---
+  useEffect(() => {
+    if (screen === "game" && currentLevelId) {
+      localStorage.setItem("odontocross_active_game", JSON.stringify({
+        levelId: currentLevelId,
+        inputs,
+        solvedWords,
+        timeSpent,
+        perfectRun,
+        hintsPenaltyPoints,
+        hintsUsedCount
+      }));
+    }
+  }, [currentLevelId, inputs, solvedWords, timeSpent, screen, perfectRun, hintsPenaltyPoints, hintsUsedCount]);
 
   // --- SINCRONIZA BANCO DE LETRAS DINÂMICO QUANDO A PALAVRA ATIVA MUDA ---
   useEffect(() => {
@@ -473,6 +515,19 @@ export default function HomeRoot() {
         
         // Verifica se fechou todo o jogo
         checkOverallCompletion(nextSolved);
+
+        // --- PULA AUTOMATICAMENTE PARA A PRÓXIMA PALAVRA NÃO RESOLVIDA ---
+        if (currentLevelData) {
+          const nextUnsolvedWord = currentLevelData.words.find(
+            (w) => !nextSolved.includes(w.number)
+          );
+          if (nextUnsolvedWord) {
+            setTimeout(() => {
+              setActiveWord(nextUnsolvedWord);
+              setFocusedCell({ x: nextUnsolvedWord.x, y: nextUnsolvedWord.y });
+            }, 300);
+          }
+        }
       } else {
         // Palavra incorreta
         soundManager.playSFX("error");
@@ -502,6 +557,9 @@ export default function HomeRoot() {
     if (!currentLevelData || !currentLevelId) return;
 
     soundManager.playSFX("fanfare");
+
+    // Limpa jogo ativo salvo do localStorage
+    localStorage.removeItem("odontocross_active_game");
 
     const totalWords = currentLevelData.words.length;
     const baseScore = totalWords * 100;
@@ -802,25 +860,42 @@ export default function HomeRoot() {
         theme === "dark" ? "border-darkbg-border bg-slate-950/40" : "border-slate-200 bg-white/40"
       }`}>
         {screen === "game" ? (
-          // Header Ultra-Compacto para Gameplay (Cópia da Referência)
-          <div className="w-full flex justify-between items-center select-none">
-            {/* Botão de Voltar */}
-            <button
-              onClick={() => {
-                soundManager.playSFX("click");
-                if (confirm("Deseja mesmo sair do jogo em andamento?")) {
-                  setScreen("levels");
-                }
-              }}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all active:scale-95 ${
-                theme === "dark"
-                  ? "bg-slate-850/80 border-slate-700 text-slate-300 hover:text-white"
-                  : "bg-white border-slate-250 text-slate-600 hover:text-slate-800 shadow-sm"
-              }`}
-              title="Voltar"
-            >
-              <ArrowLeft size={15} />
-            </button>
+          // Header Fiel à Referência com Menu de Dicas Dropdown
+          <div className="w-full flex justify-between items-center select-none relative">
+            {/* Lado Esquerdo: Voltar + Menu Níveis */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  soundManager.playSFX("click");
+                  if (confirm("Deseja mesmo sair do jogo em andamento?")) {
+                    setScreen("levels");
+                  }
+                }}
+                className={`w-9 h-9 rounded-lg flex items-center justify-center border transition-all active:scale-95 ${
+                  theme === "dark"
+                    ? "bg-slate-850 border-slate-700 text-slate-300 hover:text-white"
+                    : "bg-white border-slate-250 text-slate-600 hover:text-slate-800 shadow-sm"
+                }`}
+                title="Voltar"
+              >
+                <ArrowLeft size={16} />
+              </button>
+
+              <button
+                onClick={() => {
+                  soundManager.playSFX("click");
+                  setPauseOpen(true);
+                }}
+                className={`w-9 h-9 rounded-lg flex items-center justify-center border transition-all active:scale-95 ${
+                  theme === "dark"
+                    ? "bg-slate-850 border-slate-700 text-slate-300 hover:text-white"
+                    : "bg-white border-slate-250 text-slate-600 hover:text-slate-800 shadow-sm"
+                }`}
+                title="Menu / Pausa"
+              >
+                <Menu size={16} />
+              </button>
+            </div>
 
             {/* Centro: FASE XX */}
             <h1 className={`font-black text-sm tracking-widest uppercase ${
@@ -829,21 +904,93 @@ export default function HomeRoot() {
               FASE {currentLevelId}
             </h1>
 
-            {/* Menu Hambúrguer (Pausa) */}
-            <button
-              onClick={() => {
-                soundManager.playSFX("click");
-                setPauseOpen(true);
-              }}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all active:scale-95 ${
+            {/* Lado Direito: Moedas + Botão Dica (Com Dropdown) */}
+            <div className="flex items-center gap-2 relative">
+              <div className={`text-xs font-black px-2 py-1.5 rounded-lg border font-mono ${
                 theme === "dark"
-                  ? "bg-slate-850/80 border-slate-700 text-slate-300 hover:text-white"
-                  : "bg-white border-slate-250 text-slate-600 hover:text-slate-800 shadow-sm"
-              }`}
-              title="Menu / Pausa"
-            >
-              <Menu size={15} />
-            </button>
+                  ? "bg-slate-850 border-slate-700 text-amber-400"
+                  : "bg-white border-slate-250 text-amber-600 shadow-sm"
+              }`}>
+                🪙 {coins}
+              </div>
+
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    soundManager.playSFX("click");
+                    setHintMenuOpen(!hintMenuOpen);
+                  }}
+                  className="h-9 px-3.5 bg-[#2196f3] hover:bg-[#1976d2] text-white rounded-lg text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-md flex items-center gap-1.5"
+                >
+                  <span>Dica</span>
+                  <span className="text-[9px]">▼</span>
+                </button>
+
+                {/* Dropdown de Dicas */}
+                {hintMenuOpen && (
+                  <div className={`absolute right-0 mt-2 w-48 rounded-xl border p-2 shadow-xl z-55 flex flex-col gap-1 backdrop-blur-md animate-fade-in ${
+                    theme === "dark" 
+                      ? "bg-slate-900/95 border-slate-700 text-slate-100" 
+                      : "bg-white/95 border-slate-200 text-slate-800"
+                  }`}>
+                    <button
+                      onClick={() => {
+                        setHintMenuOpen(false);
+                        handleApplyHint("letter");
+                      }}
+                      className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${
+                        theme === "dark" ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      <span>💡 Revelar Letra</span>
+                      <span className="font-mono text-amber-500 font-extrabold">10 🪙</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setHintMenuOpen(false);
+                        handleApplyHint("half");
+                      }}
+                      className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${
+                        theme === "dark" ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      <span>⚡ Revelar Metade</span>
+                      <span className="font-mono text-amber-500 font-extrabold">30 🪙</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setHintMenuOpen(false);
+                        handleApplyHint("explain");
+                      }}
+                      className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${
+                        theme === "dark" ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      <span>📖 Aula Rápida</span>
+                      <span className="font-mono text-amber-500 font-extrabold">5 🪙</span>
+                    </button>
+                    <div className={`h-px my-1 ${theme === "dark" ? "bg-slate-800" : "bg-slate-100"}`} />
+                    <button
+                      onClick={() => {
+                        setHintMenuOpen(false);
+                        if (confirm("Deseja realmente limpar todas as palavras digitadas nesta fase?")) {
+                          soundManager.playSFX("click");
+                          setInputs({});
+                          setSolvedWords([]);
+                          setPoolLetters((prev) => prev.map((l) => ({ ...l, usedInCell: null })));
+                        }
+                      }}
+                      className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-red-400 transition-colors ${
+                        theme === "dark" ? "hover:bg-slate-850" : "hover:bg-red-50/50"
+                      }`}
+                    >
+                      <span>🔄 Reiniciar Grade</span>
+                      <span className="font-semibold text-slate-400">Grátis</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         ) : (
           // Header Padrão das Outras Telas
