@@ -34,7 +34,7 @@ export default function CrosswordBoard({
   theme,
 }: CrosswordBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
+  const [cellSize, setCellSize] = useState(40);
   const [shaking, setShaking] = useState(false);
 
   const prevIncorrectCountRef = useRef(incorrectWords.length);
@@ -46,35 +46,36 @@ export default function CrosswordBoard({
     prevIncorrectCountRef.current = incorrectWords.length;
   }, [incorrectWords]);
 
-  // Monitora tamanho do contêiner para aplicar zoom/escala automática na grade (Largura e Altura)
+  // Monitora tamanho do contêiner para calcular o tamanho dinâmico ideal de cada célula
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const calculateScale = () => {
+    const calculateCellSize = () => {
       const container = containerRef.current;
       if (!container) return;
       
       const containerWidth = container.clientWidth || 360;
       const containerHeight = container.clientHeight || 300;
       
-      const cellWidth = 44; // Tamanho base da célula + gap
-      const boardWidth = data.width * cellWidth + 24;
-      const boardHeight = data.height * cellWidth + 24;
+      // Descontamos paddings e gaps da largura e altura
+      const gapSize = 6;
+      const availableWidth = containerWidth - 24 - 16;
+      const availableHeight = containerHeight - 24 - 16;
       
-      const scaleX = containerWidth / boardWidth;
-      const scaleY = containerHeight / boardHeight;
+      const calculatedWidth = (availableWidth - (data.width - 1) * gapSize) / data.width;
+      const calculatedHeight = (availableHeight - (data.height - 1) * gapSize) / data.height;
       
-      // Usa a menor escala para garantir ajuste perfeito nos dois eixos
-      const finalScale = Math.min(1, scaleX, scaleY);
-      setScale(finalScale);
+      // Limita o tamanho ideal da célula entre 32px e 44px
+      const optimalSize = Math.max(30, Math.min(44, calculatedWidth, calculatedHeight));
+      setCellSize(optimalSize);
     };
 
     const observer = new ResizeObserver(() => {
-      calculateScale();
+      calculateCellSize();
     });
     
     observer.observe(containerRef.current);
-    calculateScale();
+    calculateCellSize();
 
     return () => observer.disconnect();
   }, [data.width, data.height]);
@@ -134,8 +135,6 @@ export default function CrosswordBoard({
       >
         <div
           style={{
-            transform: `scale(${scale})`,
-            transformOrigin: "center center",
             gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`,
           }}
           className={`grid gap-1.5 p-3 rounded-2xl select-none transition-all duration-300 shadow-md ${
@@ -150,7 +149,8 @@ export default function CrosswordBoard({
                  return (
                    <div
                      key={`empty-${x}-${y}`}
-                     className="w-10 h-10 sm:w-11 sm:h-11 bg-transparent"
+                     style={{ width: `${cellSize}px`, height: `${cellSize}px` }}
+                     className="bg-transparent"
                    />
                  );
                }
@@ -169,7 +169,8 @@ export default function CrosswordBoard({
                  <div
                    key={`cell-${x}-${y}`}
                    onClick={() => handleCellClick(x, y)}
-                   className={`w-10 h-10 sm:w-11 sm:h-11 relative rounded-lg border transition-all duration-150 flex items-center justify-center cursor-pointer ${
+                   style={{ width: `${cellSize}px`, height: `${cellSize}px` }}
+                   className={`relative rounded-lg border transition-all duration-150 flex items-center justify-center cursor-pointer ${
                      isCellSolved
                        ? theme === "dark"
                          ? "bg-emerald-500/20 border-emerald-500 text-emerald-450 font-extrabold correct-pulse"
@@ -191,20 +192,29 @@ export default function CrosswordBoard({
                  >
                   {/* Badge Direcional Horizontal (Esquerda) */}
                   {startsHorizontalWord && (
-                    <div className="absolute -left-6 top-1/2 -translate-y-1/2 bg-emerald-500 text-white text-[8px] font-black px-1 py-0.5 rounded-full shadow-md flex items-center justify-center pointer-events-none select-none z-20 border border-white/20">
+                    <div
+                      style={{ transform: `translateY(-50%) scale(${cellSize / 44})`, transformOrigin: "right center" }}
+                      className="absolute -left-6 top-1/2 bg-emerald-500 text-white text-[8px] font-black px-1 py-0.5 rounded-full shadow-md flex items-center justify-center pointer-events-none select-none z-20 border border-white/20"
+                    >
                       {startsHorizontalWord.number}→
                     </div>
                   )}
 
                   {/* Badge Direcional Vertical (Topo) */}
                   {startsVerticalWord && (
-                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-dentist-500 text-white text-[8px] font-black px-1 py-0.5 rounded-full shadow-md flex items-center justify-center pointer-events-none select-none z-20 border border-white/20">
+                    <div
+                      style={{ transform: `translateX(-50%) scale(${cellSize / 44})`, transformOrigin: "center bottom" }}
+                      className="absolute -top-6 left-1/2 bg-dentist-500 text-white text-[8px] font-black px-1 py-0.5 rounded-full shadow-md flex items-center justify-center pointer-events-none select-none z-20 border border-white/20"
+                    >
                       {startsVerticalWord.number}↓
                     </div>
                   )}
 
                   {/* Letra Centralizada */}
-                  <span className="font-extrabold text-base sm:text-lg uppercase select-none pointer-events-none">
+                  <span
+                    style={{ fontSize: `${cellSize * 0.48}px` }}
+                    className="font-extrabold uppercase select-none pointer-events-none"
+                  >
                     {value}
                   </span>
                 </div>
