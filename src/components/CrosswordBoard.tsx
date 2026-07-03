@@ -46,25 +46,29 @@ export default function CrosswordBoard({
     prevIncorrectCountRef.current = incorrectWords.length;
   }, [incorrectWords]);
 
-  // Monitora tamanho do contêiner para aplicar zoom/escala automática na grade
+  // Monitora tamanho do contêiner para aplicar zoom/escala automática na grade (Largura e Altura)
   useEffect(() => {
     const calculateScale = () => {
       if (!containerRef.current) return;
       const containerWidth = containerRef.current.clientWidth;
-      const cellWidth = 46; // Tamanho base da célula + gap (aumentado de 36)
-      const boardWidth = data.width * cellWidth + 24; // Inclui padding lateral
+      const containerHeight = containerRef.current.clientHeight;
       
-      if (boardWidth > containerWidth) {
-        setScale(containerWidth / boardWidth);
-      } else {
-        setScale(1);
-      }
+      const cellWidth = 44; // Tamanho base da célula + gap
+      const boardWidth = data.width * cellWidth + 24;
+      const boardHeight = data.height * cellWidth + 24;
+      
+      const scaleX = containerWidth / boardWidth;
+      const scaleY = containerHeight / boardHeight;
+      
+      // Usa a menor escala para garantir ajuste perfeito nos dois eixos
+      const finalScale = Math.min(1, scaleX, scaleY);
+      setScale(finalScale);
     };
 
     calculateScale();
     window.addEventListener("resize", calculateScale);
     return () => window.removeEventListener("resize", calculateScale);
-  }, [data.width]);
+  }, [data.width, data.height]);
 
   // Função auxiliar para checar se a célula faz parte da palavra selecionada
   const isCellInActiveWord = (x: number, y: number) => {
@@ -112,74 +116,70 @@ export default function CrosswordBoard({
   };
 
   return (
-    <div className="w-full flex flex-col items-center">
+    <div className="w-full h-full flex flex-col items-center justify-center min-h-0 flex-1">
       <div
         ref={containerRef}
-        className={`w-full overflow-auto max-h-[60vh] flex items-start justify-center p-3 rounded-3xl transition-transform duration-100 ${
+        className={`w-full h-full min-h-0 flex-1 overflow-hidden flex items-center justify-center p-2 transition-transform duration-100 ${
           shaking ? "shake-element" : ""
-        } ${
-          theme === "dark" 
-            ? "bg-slate-900/10 border border-slate-800/40 shadow-inner" 
-            : "bg-slate-100/50 border border-slate-250 shadow-inner"
         }`}
       >
         <div
           style={{
             transform: `scale(${scale})`,
-            transformOrigin: "top center",
+            transformOrigin: "center center",
             gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`,
           }}
-          className={`grid gap-1.5 p-3 rounded-2xl select-none shadow-xl transition-all duration-300 ${
+          className={`grid gap-1.5 p-3 rounded-2xl select-none transition-all duration-300 shadow-md ${
             theme === "dark"
-              ? "bg-darkbg-surface border border-darkbg-border"
-              : "bg-white border border-slate-250"
+              ? "bg-slate-900 border border-slate-800"
+              : "bg-white border border-slate-200"
           }`}
         >
           {data.grid.map((row, y) =>
-            row.map((cell, x) => {
-              if (cell === null) {
-                return (
-                  <div
-                    key={`empty-${x}-${y}`}
-                    className="w-10 h-10 sm:w-11 sm:h-11 bg-transparent"
-                  />
-                );
-              }
-
-              const cellKey = `${x},${y}`;
-              const value = inputs[cellKey] || "";
-              const isFocused = focusedCell?.x === x && focusedCell?.y === y;
-              const inActiveWord = isCellInActiveWord(x, y);
-              const isCellSolved = cell.words.some((num) => solvedWords.includes(num));
-              const isCellIncorrect = cell.words.some((num) => incorrectWords.includes(num));
-
-              const startsHorizontalWord = data.words.find(w => w.x === x && w.y === y && w.dir === "H");
-              const startsVerticalWord = data.words.find(w => w.x === x && w.y === y && w.dir === "V");
-
-              return (
-                <div
-                  key={`cell-${x}-${y}`}
-                  onClick={() => handleCellClick(x, y)}
-                  className={`w-10 h-10 sm:w-11 sm:h-11 relative rounded-xl border transition-all duration-150 flex items-center justify-center cursor-pointer ${
-                    isCellSolved
-                      ? theme === "dark"
-                        ? "bg-emerald-500/20 border-emerald-500 text-emerald-400 font-extrabold correct-pulse"
-                        : "bg-emerald-50 border-emerald-500 text-emerald-600 font-extrabold correct-pulse"
-                      : isCellIncorrect
-                      ? theme === "dark"
-                        ? "bg-red-500/25 border-red-500 text-red-400"
-                        : "bg-red-50 border-red-500 text-red-600"
-                      : isFocused
-                      ? "bg-[#ffee58] border-[#fbc02d] text-slate-900 shadow-md ring-2 ring-[#ffee58]/55 scale-105 z-10"
-                      : inActiveWord
-                      ? theme === "dark"
-                        ? "bg-[#0d47a1]/50 border-[#1565c0]/50 text-slate-100"
-                        : "bg-[#bbdefb] border-[#90caf9] text-slate-900"
-                      : theme === "dark"
-                      ? "bg-slate-800 border-slate-700 text-slate-100 hover:border-slate-500"
-                      : "bg-white border-slate-350 text-slate-900 shadow-sm hover:border-slate-400"
-                  }`}
-                >
+             row.map((cell, x) => {
+               if (cell === null) {
+                 return (
+                   <div
+                     key={`empty-${x}-${y}`}
+                     className="w-10 h-10 sm:w-11 sm:h-11 bg-transparent"
+                   />
+                 );
+               }
+ 
+               const cellKey = `${x},${y}`;
+               const value = inputs[cellKey] || "";
+               const isFocused = focusedCell?.x === x && focusedCell?.y === y;
+               const inActiveWord = isCellInActiveWord(x, y);
+               const isCellSolved = cell.words.some((num) => solvedWords.includes(num));
+               const isCellIncorrect = cell.words.some((num) => incorrectWords.includes(num));
+ 
+               const startsHorizontalWord = data.words.find(w => w.x === x && w.y === y && w.dir === "H");
+               const startsVerticalWord = data.words.find(w => w.x === x && w.y === y && w.dir === "V");
+ 
+               return (
+                 <div
+                   key={`cell-${x}-${y}`}
+                   onClick={() => handleCellClick(x, y)}
+                   className={`w-10 h-10 sm:w-11 sm:h-11 relative rounded-lg border transition-all duration-150 flex items-center justify-center cursor-pointer ${
+                     isCellSolved
+                       ? theme === "dark"
+                         ? "bg-emerald-500/20 border-emerald-500 text-emerald-450 font-extrabold correct-pulse"
+                         : "bg-emerald-50 border-emerald-500 text-emerald-600 font-extrabold correct-pulse"
+                       : isCellIncorrect
+                       ? theme === "dark"
+                         ? "bg-red-500/25 border-red-500 text-red-400"
+                         : "bg-red-50 border-red-500 text-red-600"
+                       : isFocused
+                       ? "bg-[#ffee58] border-[#fbc02d] text-slate-900 shadow-md ring-2 ring-[#ffee58]/55 scale-105 z-10"
+                       : inActiveWord
+                       ? theme === "dark"
+                         ? "bg-[#0d47a1]/50 border-[#1565c0]/50 text-slate-100"
+                         : "bg-[#bbdefb] border-[#90caf9] text-slate-900"
+                       : theme === "dark"
+                       ? "bg-slate-800 border-slate-700 text-slate-100 hover:border-slate-500"
+                       : "bg-white border-slate-300 text-slate-900 hover:border-slate-400"
+                   }`}
+                 >
                   {/* Badge Direcional Horizontal (Esquerda) */}
                   {startsHorizontalWord && (
                     <div className="absolute -left-6 top-1/2 -translate-y-1/2 bg-emerald-500 text-white text-[8px] font-black px-1 py-0.5 rounded-full shadow-md flex items-center justify-center pointer-events-none select-none z-20 border border-white/20">

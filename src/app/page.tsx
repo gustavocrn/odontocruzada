@@ -248,38 +248,61 @@ export default function HomeRoot() {
       setActiveWord(generated.words[0]);
       setFocusedCell({ x: generated.words[0].x, y: generated.words[0].y });
     }
+  };
 
-    // --- GERA O BANCO DE LETRAS (ANAGRAMA) ---
-    // Mapeia letras únicas necessárias (células não vazias do grid)
-    const neededLetters: string[] = [];
-    generated.grid.forEach((row) => {
-      row.forEach((cell) => {
-        if (cell && cell.char) {
-          neededLetters.push(cell.char.toUpperCase());
+  // --- SINCRONIZA BANCO DE LETRAS DINÂMICO QUANDO A PALAVRA ATIVA MUDA ---
+  useEffect(() => {
+    if (!activeWord || !currentLevelData) return;
+
+    // 1. Limpa inputs temporários de células que não pertencem a palavras resolvidas
+    const cleanedInputs = { ...inputs };
+    let hasChanges = false;
+    
+    Object.keys(inputs).forEach((key) => {
+      const [cx, cy] = key.split(",").map(Number);
+      const cellInfo = currentLevelData.grid[cy]?.[cx];
+      if (cellInfo) {
+        const isSolved = cellInfo.words.some((num) => solvedWords.includes(num));
+        if (!isSolved) {
+          delete cleanedInputs[key];
+          hasChanges = true;
         }
-      });
+      }
     });
-
-    // Quantidade de letras extras por dificuldade
-    let extraCount = 3;
-    if (levelId > 25) extraCount = 8;
-    else if (levelId > 10) extraCount = 5;
-
-    const noisePool = ["A", "E", "O", "S", "R", "T", "I", "M", "C", "P", "L", "U", "N", "D"];
-    const extraLetters: string[] = [];
-    for (let i = 0; i < extraCount; i++) {
-      const randChar = noisePool[Math.floor(Math.random() * noisePool.length)];
-      extraLetters.push(randChar);
+    
+    if (hasChanges) {
+      setInputs(cleanedInputs);
     }
 
-    // Combina e gera identificadores únicos
-    const finalSet = [...neededLetters, ...extraLetters];
-    // Embaralha
+    // 2. Encontra quais letras da palavra ativa ainda não estão preenchidas/resolvidas
+    const targetChars: string[] = [];
+    for (let i = 0; i < activeWord.word.length; i++) {
+      const cx = activeWord.x + (activeWord.dir === "H" ? i : 0);
+      const cy = activeWord.y + (activeWord.dir === "V" ? i : 0);
+      const cellInfo = currentLevelData.grid[cy]?.[cx];
+      if (cellInfo) {
+        const isSolved = cellInfo.words.some((num) => solvedWords.includes(num));
+        if (!isSolved) {
+          targetChars.push(cellInfo.char.toUpperCase());
+        }
+      }
+    }
+
+    // 3. Adiciona letras extras aleatórias para completar exatamente 14 botões
+    const noisePool = ["A", "E", "O", "S", "R", "T", "I", "M", "C", "P", "L", "U", "N", "D"];
+    const finalSet = [...targetChars];
+    while (finalSet.length < 14) {
+      const randChar = noisePool[Math.floor(Math.random() * noisePool.length)];
+      finalSet.push(randChar);
+    }
+
+    // 4. Embaralha
     for (let i = finalSet.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [finalSet[i], finalSet[j]] = [finalSet[j], finalSet[i]];
     }
 
+    // 5. Cria o array de estado poolLetters
     const pool = finalSet.map((char, index) => ({
       id: `letter-${index}-${Math.random().toString(36).substr(2, 4)}`,
       char,
@@ -287,7 +310,7 @@ export default function HomeRoot() {
     }));
 
     setPoolLetters(pool);
-  };
+  }, [activeWord]);
 
   // --- TRATA A SELEÇÃO DE UMA LETRA DO BANCO DE LETRAS (ANAGRAMA) ---
   const handleSelectLetterFromPool = (letterId: string) => {
