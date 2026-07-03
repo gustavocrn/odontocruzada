@@ -254,6 +254,10 @@ export default function HomeRoot() {
   useEffect(() => {
     if (!activeWord || !currentLevelData) return;
 
+    // Garante que o activeWord pertence ao nível atual para evitar mismatch de transição de estado
+    const wordExists = currentLevelData.words.some((w) => w.number === activeWord.number && w.word === activeWord.word);
+    if (!wordExists) return;
+
     // 1. Limpa inputs temporários de células que não pertencem a palavras resolvidas
     const cleanedInputs = { ...inputs };
     let hasChanges = false;
@@ -1150,8 +1154,8 @@ export default function HomeRoot() {
                     const val = inputs[cellKey] || "";
                     const isFocused = focusedCell && focusedCell.x === cx && focusedCell.y === cy;
                     
-                    const cellInfo = currentLevelData.grid[cy][cx];
-                    const isCellSolved = cellInfo?.words.some((num) => solvedWords.includes(num));
+                    const cellInfo = currentLevelData.grid[cy]?.[cx];
+                    const isCellSolved = cellInfo?.words.some((num) => solvedWords.includes(num)) || false;
 
                     return (
                       <button
