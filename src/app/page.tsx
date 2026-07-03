@@ -266,7 +266,7 @@ export default function HomeRoot() {
       const [cx, cy] = key.split(",").map(Number);
       const cellInfo = currentLevelData.grid[cy]?.[cx];
       if (cellInfo) {
-        const isSolved = cellInfo.words.some((num) => solvedWords.includes(num));
+        const isSolved = cellInfo?.words?.some((num) => solvedWords.includes(num));
         if (!isSolved) {
           delete cleanedInputs[key];
           hasChanges = true;
@@ -285,7 +285,7 @@ export default function HomeRoot() {
       const cy = activeWord.y + (activeWord.dir === "V" ? i : 0);
       const cellInfo = currentLevelData.grid[cy]?.[cx];
       if (cellInfo) {
-        const isSolved = cellInfo.words.some((num) => solvedWords.includes(num));
+        const isSolved = cellInfo?.words?.some((num) => solvedWords.includes(num));
         if (!isSolved) {
           targetChars.push(cellInfo.char.toUpperCase());
         }
@@ -1155,7 +1155,7 @@ export default function HomeRoot() {
                     const isFocused = focusedCell && focusedCell.x === cx && focusedCell.y === cy;
                     
                     const cellInfo = currentLevelData.grid[cy]?.[cx];
-                    const isCellSolved = cellInfo?.words.some((num) => solvedWords.includes(num)) || false;
+                    const isCellSolved = cellInfo?.words?.some((num) => solvedWords.includes(num)) || false;
 
                     return (
                       <button

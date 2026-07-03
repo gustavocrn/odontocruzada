@@ -89,14 +89,14 @@ export default function CrosswordBoard({
 
     const cellKey = `${x},${y}`;
     const value = inputs[cellKey] || "";
-    const isCellSolved = cell.words.some((num) => solvedWords.includes(num));
+    const isCellSolved = cell.words?.some((num) => solvedWords.includes(num)) || false;
 
     // Define a célula como focada primeiro
     onFocusCell({ x, y });
 
     // Alterna direção se for cruzamento
-    if (cell.words.length > 1 && activeWord) {
-      const otherWordNum = cell.words.find((num) => num !== activeWord.number);
+    if ((cell.words?.length || 0) > 1 && activeWord) {
+      const otherWordNum = cell.words?.find((num) => num !== activeWord.number);
       if (otherWordNum !== undefined) {
         const otherWord = data.words.find((w) => w.number === otherWordNum);
         if (otherWord) {
@@ -150,8 +150,8 @@ export default function CrosswordBoard({
                const value = inputs[cellKey] || "";
                const isFocused = focusedCell?.x === x && focusedCell?.y === y;
                const inActiveWord = isCellInActiveWord(x, y);
-               const isCellSolved = cell.words.some((num) => solvedWords.includes(num));
-               const isCellIncorrect = cell.words.some((num) => incorrectWords.includes(num));
+               const isCellSolved = cell.words?.some((num) => solvedWords.includes(num)) || false;
+               const isCellIncorrect = cell.words?.some((num) => incorrectWords.includes(num)) || false;
  
                const startsHorizontalWord = data.words.find(w => w.x === x && w.y === y && w.dir === "H");
                const startsVerticalWord = data.words.find(w => w.x === x && w.y === y && w.dir === "V");
