@@ -1057,168 +1057,143 @@ export default function HomeRoot() {
 
         {/* TELA DE GAMEPLAY ATIVA */}
         {screen === "game" && currentLevelData && currentLevelId && (
-          <div className="flex flex-col gap-2 w-full h-[calc(100vh-65px)] justify-between overflow-hidden">
-            {/* Conteúdo Centralizado Mobile-First */}
-            <div className="flex-1 w-full mx-auto flex flex-col gap-2.5 items-center justify-between h-full min-h-0">
-              {/* Tabuleiro Físico */}
-              <div className={`glass-panel w-full rounded-3xl overflow-hidden border flex-1 min-h-0 flex items-center justify-center p-3 relative ${
-                theme === "dark" ? "border-darkbg-border bg-slate-950/40" : "border-slate-250 bg-white/40"
+          <div className="flex flex-col w-full h-[calc(100vh-60px)] justify-between overflow-hidden">
+            {/* 1. Tabuleiro (Preenche o espaço restante) */}
+            <div className={`flex-1 min-h-0 w-full flex items-center justify-center p-3 relative ${
+              theme === "dark" ? "bg-slate-950" : "bg-slate-50"
+            }`}>
+              <CrosswordBoard
+                data={currentLevelData}
+                activeWord={activeWord}
+                onSelectWord={setActiveWord}
+                focusedCell={focusedCell}
+                onFocusCell={setFocusedCell}
+                inputs={inputs}
+                onChangeInputs={setInputs}
+                solvedWords={solvedWords}
+                onWordSolved={handleWordSolved}
+                onReturnLetterToPool={handleReturnLetterToPool}
+                incorrectWords={incorrectWords}
+                theme={theme}
+              />
+            </div>
+
+            {/* 2. Dica Atual (Ponta a ponta, plano) */}
+            {activeWord && (
+              <div className={`w-full py-3.5 px-6 flex items-center justify-between gap-4 border-y shadow-sm transition-colors duration-200 shrink-0 ${
+                theme === "dark" 
+                  ? "bg-[#0d47a1] border-[#1565c0] text-sky-100" 
+                  : "bg-[#bbdefb] border-[#90caf9] text-[#0d47a1]"
               }`}>
-                <CrosswordBoard
-                  data={currentLevelData}
-                  activeWord={activeWord}
-                  onSelectWord={setActiveWord}
-                  focusedCell={focusedCell}
-                  onFocusCell={setFocusedCell}
-                  inputs={inputs}
-                  onChangeInputs={setInputs}
-                  solvedWords={solvedWords}
-                  onWordSolved={handleWordSolved}
-                  onReturnLetterToPool={handleReturnLetterToPool}
-                  incorrectWords={incorrectWords}
-                  theme={theme}
-                />
-              </div>
+                {/* Seta Esquerda */}
+                <button
+                  onClick={() => handleNavigateWord("prev")}
+                  className={`w-9 h-9 flex items-center justify-center rounded-full shrink-0 transition-all active:scale-90 ${
+                    theme === "dark" ? "hover:bg-[#1565c0]/50" : "hover:bg-[#90caf9]/50"
+                  }`}
+                >
+                  <span className="text-xl font-bold">◀</span>
+                </button>
 
-              {/* Banner de Dica Ativa com Setas de Navegação (Fidelidade Máxima à Referência) */}
-              {activeWord && (
-                <div className={`w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] py-4 px-6 flex items-center justify-between gap-4 animate-fade-in z-10 transition-colors duration-200 border-y shadow-sm ${
-                  theme === "dark" 
-                    ? "bg-[#0d47a1]/90 border-[#1565c0] text-sky-100" 
-                    : "bg-[#bbdefb] border-[#90caf9] text-[#0d47a1]"
-                }`}>
-                  {/* Seta Esquerda */}
-                  <button
-                    onClick={() => handleNavigateWord("prev")}
-                    className={`w-10 h-10 flex items-center justify-center transition-all active:scale-90 rounded-full shrink-0 ${
-                      theme === "dark" ? "text-sky-200 hover:bg-[#1565c0]/50" : "text-[#0d47a1] hover:bg-[#90caf9]/50"
-                    }`}
-                  >
-                    <span className="text-xl font-bold">◀</span>
-                  </button>
-
-                  <div className="flex-1 text-center max-w-lg">
-                    <p className="text-sm sm:text-base font-extrabold leading-snug">
-                      {activeWord.clue}
-                    </p>
-                  </div>
-
-                  {/* Seta Direita */}
-                  <button
-                    onClick={() => handleNavigateWord("next")}
-                    className={`w-10 h-10 flex items-center justify-center transition-all active:scale-90 rounded-full shrink-0 ${
-                      theme === "dark" ? "text-sky-200 hover:bg-[#1565c0]/50" : "text-[#0d47a1] hover:bg-[#90caf9]/50"
-                    }`}
-                  >
-                    <span className="text-xl font-bold">▶</span>
-                  </button>
+                <div className="flex-1 text-center max-w-xl">
+                  <p className="text-sm sm:text-base font-extrabold leading-snug">
+                    {activeWord.clue}
+                  </p>
                 </div>
-              )}
 
+                {/* Seta Direita */}
+                <button
+                  onClick={() => handleNavigateWord("next")}
+                  className={`w-9 h-9 flex items-center justify-center rounded-full shrink-0 transition-all active:scale-90 ${
+                    theme === "dark" ? "hover:bg-[#1565c0]/50" : "hover:bg-[#90caf9]/50"
+                  }`}
+                >
+                  <span className="text-xl font-bold">▶</span>
+                </button>
+              </div>
+            )}
+
+            {/* 3. Rodapé com Resposta & Banco de Letras */}
+            <div className={`p-4 flex flex-col gap-4 items-center shrink-0 border-t transition-colors ${
+              theme === "dark" ? "bg-slate-900 border-slate-800" : "bg-slate-100 border-slate-250"
+            }`}>
               {/* Slots de Resposta (Preview da Palavra Ativa) */}
               {activeWord && (
-                <div className="w-full flex flex-col items-center gap-1.5 py-1">
-                  <div className="flex gap-1.5 flex-wrap justify-center w-full">
-                    {activeWord.word.split("").map((_, i) => {
-                      const cx = activeWord.x + (activeWord.dir === "H" ? i : 0);
-                      const cy = activeWord.y + (activeWord.dir === "V" ? i : 0);
-                      const cellKey = `${cx},${cy}`;
-                      const val = inputs[cellKey] || "";
-                      const isFocused = focusedCell && focusedCell.x === cx && focusedCell.y === cy;
-                      
-                      // Confere se a célula já está travada por uma palavra resolvida
-                      const cellInfo = currentLevelData.grid[cy][cx];
-                      const isCellSolved = cellInfo?.words.some((num) => solvedWords.includes(num));
+                <div className="flex gap-1.5 flex-wrap justify-center w-full">
+                  {activeWord.word.split("").map((_, i) => {
+                    const cx = activeWord.x + (activeWord.dir === "H" ? i : 0);
+                    const cy = activeWord.y + (activeWord.dir === "V" ? i : 0);
+                    const cellKey = `${cx},${cy}`;
+                    const val = inputs[cellKey] || "";
+                    const isFocused = focusedCell && focusedCell.x === cx && focusedCell.y === cy;
+                    
+                    const cellInfo = currentLevelData.grid[cy][cx];
+                    const isCellSolved = cellInfo?.words.some((num) => solvedWords.includes(num));
 
-                      return (
-                        <button
-                          key={`slot-${i}`}
-                          onClick={() => {
-                            if (isCellSolved) return;
-                            if (val !== "") {
-                              handleReturnLetterToPool(cx, cy);
-                            } else {
-                              setFocusedCell({ x: cx, y: cy });
-                            }
-                          }}
-                          className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl font-black text-sm flex items-center justify-center border transition-all duration-150 ${
-                            isCellSolved
-                              ? "bg-emerald-500/20 border-emerald-500 text-emerald-400"
-                              : isFocused
-                              ? "bg-[#ffee58] border-[#fbc02d] text-slate-900 shadow-md ring-2 ring-[#ffee58]/35 scale-105"
-                              : theme === "dark"
-                              ? "bg-slate-800 border-slate-700 text-slate-100 hover:border-slate-500"
-                              : "bg-white border-slate-200 text-slate-900 shadow-md hover:border-slate-350"
-                          }`}
-                        >
-                          {val !== "" ? val : "_"}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Banco de Letras Embaralhadas (Anagrama) */}
-              <div className={`w-full flex flex-col gap-3 p-3.5 rounded-3xl border shadow-md transition-colors ${
-                theme === "dark" ? "bg-slate-900/50 border-darkbg-border" : "bg-slate-200/40 border-slate-200"
-              }`}>
-                <div className="flex justify-between items-center px-1">
-                  <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
-                    Letras Disponíveis
-                  </span>
-                  <button
-                    onClick={shufflePool}
-                    className={`flex items-center gap-1 px-3 py-1 border rounded-lg text-[10px] font-black uppercase tracking-wider active:scale-95 transition-all ${
-                      theme === "dark"
-                        ? "bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700/60"
-                        : "bg-white hover:bg-slate-50 text-slate-600 border-slate-250 shadow-sm"
-                    }`}
-                  >
-                    🔀 Embaralhar
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap gap-2 justify-center w-full max-h-[140px] overflow-y-auto py-1">
-                  {poolLetters.map((letter) => {
-                    const isUsed = letter.usedInCell !== null;
                     return (
                       <button
-                        key={letter.id}
-                        onClick={() => handleSelectLetterFromPool(letter.id)}
-                        disabled={isUsed}
-                        className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl font-black text-base flex items-center justify-center transition-all duration-150 border shrink-0 ${
-                          isUsed
-                            ? theme === "dark"
-                              ? "bg-slate-950/40 border-slate-900 text-slate-700 opacity-20 cursor-not-allowed"
-                              : "bg-slate-300/20 border-slate-300 text-slate-400 opacity-20 cursor-not-allowed"
+                        key={`slot-${i}`}
+                        onClick={() => {
+                          if (isCellSolved) return;
+                          if (val !== "") {
+                            handleReturnLetterToPool(cx, cy);
+                          } else {
+                            setFocusedCell({ x: cx, y: cy });
+                          }
+                        }}
+                        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl font-black text-sm flex items-center justify-center border transition-all duration-150 ${
+                          isCellSolved
+                            ? "bg-emerald-500/20 border-emerald-500 text-emerald-400"
+                            : isFocused
+                            ? "bg-[#ffee58] border-[#fbc02d] text-slate-900 shadow-md ring-2 ring-[#ffee58]/35 scale-105"
                             : theme === "dark"
-                            ? "bg-slate-800 hover:bg-slate-700 text-slate-100 border-slate-600/80 shadow-md active:scale-90 hover:scale-105 active:bg-[#2196f3] active:text-white"
-                            : "bg-white hover:bg-slate-50 text-slate-800 border-slate-300 shadow-md active:scale-90 hover:scale-105 active:bg-[#2196f3] active:text-white"
+                            ? "bg-slate-800 border-slate-700 text-slate-100"
+                            : "bg-white border-slate-200 text-slate-900 shadow-sm"
                         }`}
                       >
-                        {letter.char}
+                        {val !== "" ? val : "_"}
                       </button>
                     );
                   })}
                 </div>
+              )}
+
+              {/* Banco de Letras */}
+              <div className="flex flex-wrap gap-2 justify-center w-full max-h-[120px] overflow-y-auto py-1">
+                {poolLetters.map((letter) => {
+                  const isUsed = letter.usedInCell !== null;
+                  return (
+                    <button
+                      key={letter.id}
+                      onClick={() => handleSelectLetterFromPool(letter.id)}
+                      disabled={isUsed}
+                      className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl font-black text-base flex items-center justify-center transition-all duration-150 border shrink-0 ${
+                        isUsed
+                          ? theme === "dark"
+                            ? "bg-slate-950/40 border-slate-900 text-slate-700 opacity-20 cursor-not-allowed"
+                            : "bg-slate-200/20 border-slate-200 text-slate-400 opacity-20 cursor-not-allowed"
+                          : theme === "dark"
+                          ? "bg-slate-800 hover:bg-slate-700 text-slate-100 border-slate-750 shadow-sm active:bg-[#2196f3] active:text-white"
+                          : "bg-white hover:bg-slate-50 text-slate-800 border-slate-300 shadow-sm active:bg-[#2196f3] active:text-white"
+                      }`}
+                    >
+                      {letter.char}
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Painel Educacional Dinâmico (Aula Rápida) */}
-              {explanationActive && activeWord && (
-                <div className={`p-3.5 w-full rounded-2xl border animate-fade-in flex flex-col gap-1 ${
+              {/* Embaralhar */}
+              <button
+                onClick={shufflePool}
+                className={`flex items-center gap-1.5 px-4 py-1.5 border rounded-lg text-xs font-black uppercase tracking-wider active:scale-95 transition-all ${
                   theme === "dark"
-                    ? "border-emerald-500 bg-emerald-500/5 text-slate-200"
-                    : "border-emerald-500 bg-emerald-50/60 text-slate-800"
-                }`}>
-                  <span className="text-[9px] text-emerald-500 font-extrabold uppercase tracking-wider flex items-center gap-1">
-                    📖 Aula Rápida: {activeWord.word}
-                  </span>
-                  <p className="text-xs font-semibold leading-relaxed">
-                    {activeWord.explanation}
-                  </p>
-                </div>
-              )}
+                    ? "bg-slate-850 hover:bg-slate-800 text-slate-200 border-slate-750"
+                    : "bg-white hover:bg-slate-50 text-slate-750 border-slate-250 shadow-sm"
+                }`}
+              >
+                🔀 Embaralhar
+              </button>
             </div>
           </div>
         )}
