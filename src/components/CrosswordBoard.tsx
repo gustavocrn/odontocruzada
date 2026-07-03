@@ -16,6 +16,7 @@ interface CrosswordBoardProps {
   onWordSolved: (wordNum: number) => void;
   onReturnLetterToPool: (x: number, y: number) => void;
   incorrectWords: number[];
+  theme: "dark" | "light";
 }
 
 export default function CrosswordBoard({
@@ -30,6 +31,7 @@ export default function CrosswordBoard({
   onWordSolved,
   onReturnLetterToPool,
   incorrectWords,
+  theme,
 }: CrosswordBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -110,35 +112,15 @@ export default function CrosswordBoard({
   };
 
   return (
-    <div className="w-full flex flex-col items-center gap-3">
-      {/* Controles de Zoom para Acessibilidade */}
-      <div className="flex gap-2 self-end px-4 select-none">
-        <button
-          onClick={() => setScale((s) => Math.max(0.6, s - 0.1))}
-          className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 font-extrabold flex items-center justify-center hover:bg-slate-700 text-xs active:scale-95 transition-transform"
-          title="Diminuir Grade"
-        >
-          A-
-        </button>
-        <button
-          onClick={() => setScale(1)}
-          className="px-2.5 h-8 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 font-bold flex items-center justify-center hover:bg-slate-700 text-[10px] active:scale-95 transition-transform"
-        >
-          100%
-        </button>
-        <button
-          onClick={() => setScale((s) => Math.min(1.8, s + 0.1))}
-          className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 font-extrabold flex items-center justify-center hover:bg-slate-700 text-xs active:scale-95 transition-transform"
-          title="Aumentar Grade"
-        >
-          A+
-        </button>
-      </div>
-
+    <div className="w-full flex flex-col items-center">
       <div
         ref={containerRef}
-        className={`w-full overflow-auto max-h-[60vh] flex items-start justify-center p-6 bg-slate-900/10 rounded-3xl border border-slate-800/40 shadow-inner min-h-[320px] transition-transform duration-100 ${
+        className={`w-full overflow-auto max-h-[60vh] flex items-start justify-center p-3 rounded-3xl transition-transform duration-100 ${
           shaking ? "shake-element" : ""
+        } ${
+          theme === "dark" 
+            ? "bg-slate-900/10 border border-slate-800/40 shadow-inner" 
+            : "bg-slate-100/50 border border-slate-250 shadow-inner"
         }`}
       >
         <div
@@ -147,7 +129,11 @@ export default function CrosswordBoard({
             transformOrigin: "top center",
             gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`,
           }}
-          className="grid gap-1.5 p-3 rounded-2xl bg-darkbg-surface border border-darkbg-border select-none shadow-xl transition-all duration-300"
+          className={`grid gap-1.5 p-3 rounded-2xl select-none shadow-xl transition-all duration-300 ${
+            theme === "dark"
+              ? "bg-darkbg-surface border border-darkbg-border"
+              : "bg-white border border-slate-250"
+          }`}
         >
           {data.grid.map((row, y) =>
             row.map((cell, x) => {
@@ -176,14 +162,22 @@ export default function CrosswordBoard({
                   onClick={() => handleCellClick(x, y)}
                   className={`w-10 h-10 sm:w-11 sm:h-11 relative rounded-xl border transition-all duration-150 flex items-center justify-center cursor-pointer ${
                     isCellSolved
-                      ? "bg-emerald-500/20 border-emerald-500 text-emerald-400 font-extrabold correct-pulse"
+                      ? theme === "dark"
+                        ? "bg-emerald-500/20 border-emerald-500 text-emerald-400 font-extrabold correct-pulse"
+                        : "bg-emerald-50 border-emerald-500 text-emerald-600 font-extrabold correct-pulse"
                       : isCellIncorrect
-                      ? "bg-red-500/25 border-red-500 text-red-400"
+                      ? theme === "dark"
+                        ? "bg-red-500/25 border-red-500 text-red-400"
+                        : "bg-red-50 border-red-500 text-red-600"
                       : isFocused
                       ? "bg-dentist-500 border-dentist-500 text-white shadow-md ring-2 ring-dentist-500/35 scale-105 z-10"
                       : inActiveWord
-                      ? "bg-dentist-500/10 border-dentist-500/35 text-slate-100"
-                      : "bg-slate-800/80 border-slate-700/80 text-slate-100 hover:border-slate-500"
+                      ? theme === "dark"
+                        ? "bg-dentist-500/10 border-dentist-500/35 text-slate-100"
+                        : "bg-dentist-50 border-dentist-200 text-slate-900"
+                      : theme === "dark"
+                      ? "bg-slate-800/80 border-slate-700/80 text-slate-100 hover:border-slate-500"
+                      : "bg-white border-slate-300 text-slate-900 shadow-sm hover:border-slate-400"
                   }`}
                 >
                   {/* Badge Direcional Horizontal (Esquerda) */}

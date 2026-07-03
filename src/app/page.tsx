@@ -19,6 +19,7 @@ import {
   HelpCircle,
   BookOpen,
   ArrowRight,
+  ArrowLeft,
   Home,
   CheckSquare,
   Eraser,
@@ -103,6 +104,7 @@ export default function HomeRoot() {
   const [hintsUsedCount, setHintsUsedCount] = useState(0);
   const [perfectRun, setPerfectRun] = useState(true);
   const [explanationActive, setExplanationActive] = useState(false);
+  const [hintMenuOpen, setHintMenuOpen] = useState(false);
 
   // Estatísticas da última partida concluída (para conquistas)
   const [lastHintsUsed, setLastHintsUsed] = useState(0);
@@ -229,6 +231,7 @@ export default function HomeRoot() {
     setInputs({});
     setFocusedCell(null);
     setExplanationActive(false);
+    setHintMenuOpen(false);
 
     // Geração procedural da grade
     const generated = generatorRef.current.generate(level.words);
@@ -392,6 +395,19 @@ export default function HomeRoot() {
       return { x: nx, y: ny };
     }
     return null;
+  };
+
+  const handleNavigateWord = (direction: "prev" | "next") => {
+    if (!currentLevelData || !activeWord) return;
+    const idx = currentLevelData.words.findIndex((w) => w.number === activeWord.number);
+    let nextIdx = direction === "next" ? idx + 1 : idx - 1;
+    if (nextIdx >= currentLevelData.words.length) nextIdx = 0;
+    if (nextIdx < 0) nextIdx = currentLevelData.words.length - 1;
+    
+    soundManager.playSFX("click");
+    const nextWord = currentLevelData.words[nextIdx];
+    setActiveWord(nextWord);
+    setFocusedCell({ x: nextWord.x, y: nextWord.y });
   };
 
   // Verifica preenchimento completo de uma palavra específica
@@ -737,13 +753,43 @@ export default function HomeRoot() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen text-slate-100 bg-gradient-to-b from-[#0a1122] to-[#040810] selection:bg-dentist-500 selection:text-white">
+    <div className={`flex flex-col min-h-screen selection:bg-dentist-500 selection:text-white transition-colors duration-300 ${
+      theme === "dark"
+        ? "text-slate-100 bg-gradient-to-b from-[#0a1122] to-[#040810]"
+        : "text-slate-800 bg-gradient-to-b from-slate-50 to-slate-100"
+    }`}>
       {/* Glow de fundo */}
       <div className="fixed inset-0 pointer-events-none z-0 bg-[radial-gradient(circle_at_15%_15%,rgba(20,163,181,0.12),transparent_45%)]" />
 
       {/* CABEÇALHO GLOBAL */}
-      <header className="glass-panel border-b border-darkbg-border py-2.5 px-4 sticky top-0 z-30 flex justify-between items-center backdrop-blur-md">
-        <div className="flex items-center gap-2.5">
+      <header className={`glass-panel border-b py-2.5 px-4 sticky top-0 z-35 flex justify-between items-center backdrop-blur-md transition-colors duration-200 ${
+        theme === "dark" ? "border-darkbg-border bg-slate-950/40" : "border-slate-200 bg-white/40"
+      }`}>
+        <div className="flex items-center gap-2">
+          {/* Botão de Voltar */}
+          {screen !== "home" && (
+            <button
+              onClick={() => {
+                soundManager.playSFX("click");
+                if (screen === "game") {
+                  if (confirm("Deseja mesmo sair do jogo em andamento?")) {
+                    setScreen("levels");
+                  }
+                } else {
+                  setScreen("home");
+                }
+              }}
+              className={`w-9 h-9 rounded-lg flex items-center justify-center border transition-all active:scale-95 ${
+                theme === "dark"
+                  ? "bg-slate-850/80 border-slate-700 text-slate-300 hover:text-white"
+                  : "bg-white border-slate-250 text-slate-600 hover:text-slate-800 shadow-sm"
+              }`}
+              title="Voltar"
+            >
+              <ArrowLeft size={16} />
+            </button>
+          )}
+
           {/* Menu Hambúrguer */}
           <button
             onClick={() => {
@@ -751,32 +797,43 @@ export default function HomeRoot() {
               if (screen === "game") setPauseOpen(true);
               else setScreen("levels");
             }}
-            className="w-9 h-9 rounded-lg flex items-center justify-center bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-white transition-colors active:scale-95"
+            className={`w-9 h-9 rounded-lg flex items-center justify-center border transition-all active:scale-95 ${
+              theme === "dark"
+                ? "bg-slate-850/80 border-slate-700 text-slate-300 hover:text-white"
+                : "bg-white border-slate-250 text-slate-600 hover:text-slate-800 shadow-sm"
+            }`}
+            title="Menu de Níveis"
           >
             <Menu size={16} />
           </button>
           
+          {/* Logo do Jogo */}
           <div
             onClick={() => {
               soundManager.playSFX("click");
               setScreen("home");
             }}
-            className="flex items-center gap-1.5 cursor-pointer select-none"
+            className="flex items-center gap-1.5 cursor-pointer select-none ml-1"
           >
-            <h1 className="font-black text-sm sm:text-base tracking-wider text-dentist-400 uppercase">
+            <h1 className="font-black text-sm sm:text-base tracking-wider text-dentist-500 uppercase">
               OdontoCruzada
             </h1>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           {/* Alternar Tema */}
           <button
             onClick={() => {
               soundManager.playSFX("click");
               setTheme(theme === "dark" ? "light" : "dark");
             }}
-            className="w-9 h-9 rounded-lg flex items-center justify-center bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-white transition-all duration-200 active:scale-95"
+            className={`w-9 h-9 rounded-lg flex items-center justify-center border transition-all duration-200 active:scale-95 ${
+              theme === "dark"
+                ? "bg-slate-850/80 border-slate-700 text-slate-300 hover:text-white"
+                : "bg-white border-slate-250 text-slate-600 hover:text-slate-800 shadow-sm"
+            }`}
+            title="Alternar Tema"
           >
             {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
           </button>
@@ -787,10 +844,94 @@ export default function HomeRoot() {
               soundManager.playSFX("click");
               setSettingsOpen(true);
             }}
-            className="w-9 h-9 rounded-lg flex items-center justify-center bg-slate-800/80 border border-slate-700 text-slate-300 hover:text-white transition-colors active:scale-95"
+            className={`w-9 h-9 rounded-lg flex items-center justify-center border transition-all active:scale-95 ${
+              theme === "dark"
+                ? "bg-slate-850/80 border-slate-700 text-slate-300 hover:text-white"
+                : "bg-white border-slate-250 text-slate-600 hover:text-slate-800 shadow-sm"
+            }`}
+            title="Configurações"
           >
             <SettingsIcon size={16} />
           </button>
+
+          {/* Botão de Dica (Apenas em Gameplay) */}
+          {screen === "game" && (
+            <div className="relative">
+              <button
+                onClick={() => {
+                  soundManager.playSFX("click");
+                  setHintMenuOpen(!hintMenuOpen);
+                }}
+                className="px-3.5 py-1.5 bg-dentist-500 hover:bg-dentist-600 text-white rounded-lg text-xs font-black uppercase transition-all active:scale-95 shadow-sm shadow-btn-primary flex items-center gap-1"
+              >
+                <span>Dica</span>
+                <span className="text-[10px]">▼</span>
+              </button>
+              
+              {hintMenuOpen && (
+                <div className={`absolute right-0 mt-2 w-48 rounded-xl border p-2 shadow-xl z-55 flex flex-col gap-1 backdrop-blur-md animate-fade-in ${
+                  theme === "dark" 
+                    ? "bg-slate-900/95 border-slate-700 text-slate-100" 
+                    : "bg-white/95 border-slate-200 text-slate-800"
+                }`}>
+                  <button
+                    onClick={() => {
+                      setHintMenuOpen(false);
+                      handleApplyHint("letter");
+                    }}
+                    className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${
+                      theme === "dark" ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    <span>💡 Revelar Letra</span>
+                    <span className="font-mono text-amber-500 font-extrabold">10 🪙</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setHintMenuOpen(false);
+                      handleApplyHint("half");
+                    }}
+                    className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${
+                      theme === "dark" ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    <span>⚡ Revelar Metade</span>
+                    <span className="font-mono text-amber-500 font-extrabold">30 🪙</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setHintMenuOpen(false);
+                      handleApplyHint("explain");
+                    }}
+                    className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${
+                      theme === "dark" ? "hover:bg-slate-800/80 text-slate-200" : "hover:bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    <span>📖 Aula Rápida</span>
+                    <span className="font-mono text-amber-500 font-extrabold">5 🪙</span>
+                  </button>
+                  <div className={`h-px my-1 ${theme === "dark" ? "bg-slate-800" : "bg-slate-100"}`} />
+                  <button
+                    onClick={() => {
+                      setHintMenuOpen(false);
+                      if (confirm("Deseja realmente limpar todas as palavras digitadas nesta fase?")) {
+                        soundManager.playSFX("click");
+                        setInputs({});
+                        setSolvedWords([]);
+                        setPoolLetters((prev) => prev.map((l) => ({ ...l, usedInCell: null })));
+                      }
+                    }}
+                    className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-red-400 transition-colors ${
+                      theme === "dark" ? "hover:bg-slate-850" : "hover:bg-red-50/50"
+                    }`}
+                  >
+                    <span>🔄 Reiniciar Grade</span>
+                    <span className="font-semibold text-slate-400">Grátis</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
@@ -963,53 +1104,53 @@ export default function HomeRoot() {
 
         {/* TELA DE GAMEPLAY ATIVA */}
         {screen === "game" && currentLevelData && currentLevelId && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3.5 w-full">
             {/* Header Compacto da Fase */}
-            <div className="glass-panel p-3 rounded-2xl border border-darkbg-border flex flex-col gap-2 shadow-sm bg-slate-900/40">
+            <div className={`glass-panel p-3 rounded-2xl border flex flex-col gap-2 shadow-sm ${
+              theme === "dark" ? "border-darkbg-border bg-slate-900/40" : "border-slate-200 bg-white/50"
+            }`}>
               <div className="flex justify-between items-center w-full">
                 <div>
-                  <span className="text-[9px] text-dentist-400 font-black uppercase tracking-wider">
+                  <span className="text-[9px] text-dentist-500 font-black uppercase tracking-wider">
                     Fase {currentLevelId} • {OdontoDatabase.find(l => l.id === currentLevelId)?.category}
                   </span>
-                  <h3 className="font-extrabold text-slate-100 text-sm leading-tight">
+                  <h3 className={`font-extrabold text-xs sm:text-sm leading-tight ${
+                    theme === "dark" ? "text-slate-100" : "text-slate-900"
+                  }`}>
                     {OdontoDatabase.find(l => l.id === currentLevelId)?.title}
                   </h3>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   {/* Cronômetro */}
-                  <div className="flex items-center gap-1 font-mono text-xs font-bold bg-slate-800/60 py-1 px-2.5 rounded-xl border border-slate-700/40">
+                  <div className={`flex items-center gap-1 font-mono text-xs font-bold py-1 px-2.5 rounded-xl border ${
+                    theme === "dark" ? "bg-slate-800/60 border-slate-700/40" : "bg-white border-slate-200 text-slate-800 shadow-sm"
+                  }`}>
                     <Clock size={12} className="text-amber-500 animate-pulse" />
                     {Math.floor(timeSpent / 60).toString().padStart(2, "0")}:
                     {(timeSpent % 60).toString().padStart(2, "0")}
                   </div>
 
                   {/* Moedas */}
-                  <div className="flex items-center gap-1 text-xs font-bold bg-slate-800/60 py-1 px-2.5 rounded-xl border border-slate-700/40 text-amber-400">
+                  <div className={`flex items-center gap-1 text-xs font-bold py-1 px-2.5 rounded-xl border text-amber-505 ${
+                    theme === "dark" ? "bg-slate-800/60 border-slate-700/40" : "bg-white border-slate-200 text-amber-600 shadow-sm"
+                  }`}>
                     <span>🪙</span>
                     <span>{coins}</span>
                   </div>
-
-                  {/* Pausar */}
-                  <button
-                    onClick={() => {
-                      soundManager.playSFX("click");
-                      setPauseOpen(true);
-                    }}
-                    className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700/60 text-slate-300 hover:text-white flex items-center justify-center active:scale-95 transition-transform"
-                    title="Pausar"
-                  >
-                    ⏸
-                  </button>
                 </div>
               </div>
 
               {/* Linha Fina de Progresso de XP */}
-              <div className="flex items-center gap-2.5 w-full bg-slate-800/20 px-2 py-1.5 rounded-xl border border-slate-850/50">
+              <div className={`flex items-center gap-2.5 w-full px-2 py-1 rounded-xl border ${
+                theme === "dark" ? "bg-slate-800/20 border-slate-850/50" : "bg-slate-100/30 border-slate-200"
+              }`}>
                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                   Nível {playerLevel}
                 </span>
-                <div className="flex-1 h-1.5 bg-slate-950 rounded-full overflow-hidden">
+                <div className={`flex-1 h-1 rounded-full overflow-hidden ${
+                  theme === "dark" ? "bg-slate-950" : "bg-slate-200"
+                }`}>
                   <div
                     style={{ width: `${Math.min(100, (playerXP / xpNeeded) * 100)}%` }}
                     className="h-full bg-gradient-to-r from-dentist-500 to-emerald-400 rounded-full transition-all duration-500"
@@ -1022,9 +1163,11 @@ export default function HomeRoot() {
             </div>
 
             {/* Conteúdo Centralizado Mobile-First */}
-            <div className="max-w-xl w-full mx-auto flex flex-col gap-4 items-center">
+            <div className="max-w-xl w-full mx-auto flex flex-col gap-3.5 items-center">
               {/* Tabuleiro Físico */}
-              <div className="glass-panel w-full rounded-3xl overflow-hidden border border-darkbg-border flex items-center justify-center p-3 bg-slate-950/40 relative">
+              <div className={`glass-panel w-full rounded-3xl overflow-hidden border flex items-center justify-center p-3 h-[40vh] min-h-[250px] relative ${
+                theme === "dark" ? "border-darkbg-border bg-slate-950/40" : "border-slate-250 bg-white/40"
+              }`}>
                 <CrosswordBoard
                   data={currentLevelData}
                   activeWord={activeWord}
@@ -1037,101 +1180,119 @@ export default function HomeRoot() {
                   onWordSolved={handleWordSolved}
                   onReturnLetterToPool={handleReturnLetterToPool}
                   incorrectWords={incorrectWords}
+                  theme={theme}
                 />
               </div>
 
-              {/* Floating Snap Active Clue Banner (CodyCross/Duolingo style) */}
+              {/* Banner de Dica Ativa com Setas de Navegação (Estilo CodyCross/Wordscapes) */}
               {activeWord && (
-                <div className="glass-panel p-3.5 w-full rounded-2xl border border-dentist-500/40 bg-slate-800/60 shadow-lg flex items-center justify-between gap-3 animate-fade-in">
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center font-black text-xs text-white shrink-0 shadow-md ${
-                      activeWord.dir === "H" ? "bg-emerald-500" : "bg-dentist-500"
+                <div className={`w-full rounded-2xl shadow-md border p-3 flex items-center justify-between gap-3 animate-fade-in relative z-10 transition-colors duration-200 ${
+                  theme === "dark" 
+                    ? "bg-gradient-to-r from-slate-900 to-dentist-950/80 border-dentist-500/40 text-slate-100" 
+                    : "bg-gradient-to-r from-dentist-100 to-teal-50 border-dentist-300 text-slate-800"
+                }`}>
+                  {/* Seta Esquerda */}
+                  <button
+                    onClick={() => handleNavigateWord("prev")}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-90 border shadow-sm ${
+                      theme === "dark"
+                        ? "bg-slate-800 border-slate-700 text-slate-300 hover:text-white"
+                        : "bg-white border-slate-250 text-slate-600 hover:text-slate-800"
+                    }`}
+                  >
+                    ◀
+                  </button>
+
+                  <div className="flex-1 text-center">
+                    <span className={`text-[8px] font-black uppercase tracking-widest ${
+                      activeWord.dir === "H" ? "text-emerald-500" : "text-dentist-500"
                     }`}>
-                      {activeWord.number}
-                      {activeWord.dir === "H" ? "→" : "↓"}
-                    </div>
-                    <p className="text-xs font-extrabold text-slate-100 leading-normal">
+                      Pergunta {activeWord.number} ({activeWord.dir === "H" ? "Horizontal" : "Vertical"})
+                    </span>
+                    <p className="text-xs font-extrabold leading-normal mt-0.5">
                       {activeWord.clue}
                     </p>
                   </div>
-                  
-                  {/* Botão de Explicação Clínica */}
+
+                  {/* Seta Direita */}
                   <button
-                    onClick={() => handleApplyHint("explain")}
-                    className="w-9 h-9 rounded-xl bg-dentist-500/10 border border-dentist-500/30 text-dentist-400 flex items-center justify-center hover:bg-dentist-500 hover:text-white transition-all active:scale-90"
-                    title="Aula Rápida / Ver Explicação"
+                    onClick={() => handleNavigateWord("next")}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-90 border shadow-sm ${
+                      theme === "dark"
+                        ? "bg-slate-800 border-slate-700 text-slate-300 hover:text-white"
+                        : "bg-white border-slate-250 text-slate-600 hover:text-slate-800"
+                    }`}
                   >
-                    <Lightbulb size={18} />
+                    ▶
                   </button>
                 </div>
               )}
 
-              {/* Barra de Ações do Piloto */}
-              <div className="grid grid-cols-4 gap-2 w-full p-2 bg-slate-900/40 rounded-2xl border border-darkbg-border shadow-inner">
-                {/* Letra */}
-                <button
-                  onClick={() => handleApplyHint("letter")}
-                  className="flex flex-col items-center justify-center gap-1 py-2 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700/40 transition-all active:scale-95 shadow-sm"
-                >
-                  <Lightbulb size={16} className="text-amber-400 fill-amber-400/10" />
-                  <span className="text-[9px] font-black uppercase tracking-wider mt-0.5">Letra</span>
-                  <span className="text-[8px] font-mono text-amber-500 font-extrabold">10 🪙</span>
-                </button>
+              {/* Slots de Resposta (Preview da Palavra Ativa) */}
+              {activeWord && (
+                <div className="w-full flex flex-col items-center gap-1.5 py-1">
+                  <div className="flex gap-1 flex-wrap justify-center w-full">
+                    {activeWord.word.split("").map((_, i) => {
+                      const cx = activeWord.x + (activeWord.dir === "H" ? i : 0);
+                      const cy = activeWord.y + (activeWord.dir === "V" ? i : 0);
+                      const cellKey = `${cx},${cy}`;
+                      const val = inputs[cellKey] || "";
+                      const isFocused = focusedCell && focusedCell.x === cx && focusedCell.y === cy;
+                      
+                      // Confere se a célula já está travada por uma palavra resolvida
+                      const cellInfo = currentLevelData.grid[cy][cx];
+                      const isCellSolved = cellInfo?.words.some((num) => solvedWords.includes(num));
 
-                {/* Metade */}
-                <button
-                  onClick={() => handleApplyHint("half")}
-                  className="flex flex-col items-center justify-center gap-1 py-2 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700/40 transition-all active:scale-95 shadow-sm"
-                >
-                  <Sparkles size={16} className="text-purple-400" />
-                  <span className="text-[9px] font-black uppercase tracking-wider mt-0.5">Metade</span>
-                  <span className="text-[8px] font-mono text-amber-500 font-extrabold">30 🪙</span>
-                </button>
-                
-                {/* Aula Rápida */}
-                <button
-                  onClick={() => handleApplyHint("explain")}
-                  className="flex flex-col items-center justify-center gap-1 py-2 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700/40 transition-all active:scale-95 shadow-sm"
-                >
-                  <BookOpen size={16} className="text-emerald-400" />
-                  <span className="text-[9px] font-black uppercase tracking-wider mt-0.5">Aula</span>
-                  <span className="text-[8px] font-mono text-amber-500 font-extrabold">5 🪙</span>
-                </button>
-
-                {/* Reiniciar Grade */}
-                <button
-                  onClick={() => {
-                    if (confirm("Deseja realmente limpar todas as palavras digitadas nesta fase?")) {
-                      soundManager.playSFX("click");
-                      setInputs({});
-                      setSolvedWords([]);
-                      // Devolve todas as letras ao pool
-                      setPoolLetters((prev) => prev.map((l) => ({ ...l, usedInCell: null })));
-                    }
-                  }}
-                  className="flex flex-col items-center justify-center gap-1 py-2 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700/40 transition-all active:scale-95 shadow-sm"
-                >
-                  <RotateCcw size={16} className="text-blue-400" />
-                  <span className="text-[9px] font-black uppercase tracking-wider mt-0.5">Reiniciar</span>
-                  <span className="text-[8px] font-medium text-slate-500 font-semibold">Grátis</span>
-                </button>
-              </div>
+                      return (
+                        <button
+                          key={`slot-${i}`}
+                          onClick={() => {
+                            if (isCellSolved) return;
+                            if (val !== "") {
+                              handleReturnLetterToPool(cx, cy);
+                            } else {
+                              setFocusedCell({ x: cx, y: cy });
+                            }
+                          }}
+                          className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl font-black text-sm flex items-center justify-center border transition-all duration-150 ${
+                            isCellSolved
+                              ? "bg-emerald-500/20 border-emerald-500 text-emerald-400"
+                              : isFocused
+                              ? "bg-dentist-500 border-dentist-500 text-white shadow-md ring-2 ring-dentist-500/35 scale-105"
+                              : theme === "dark"
+                              ? "bg-slate-800 border-slate-700 text-slate-100 hover:border-slate-500"
+                              : "bg-white border-slate-200 text-slate-900 shadow-md hover:border-slate-350"
+                          }`}
+                        >
+                          {val !== "" ? val : "_"}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Banco de Letras Embaralhadas (Anagrama) */}
-              <div className="w-full flex flex-col gap-3 p-4 bg-slate-900/50 rounded-3xl border border-darkbg-border shadow-md">
+              <div className={`w-full flex flex-col gap-3 p-4 rounded-3xl border shadow-md transition-colors ${
+                theme === "dark" ? "bg-slate-900/50 border-darkbg-border" : "bg-slate-200/40 border-slate-200"
+              }`}>
                 <div className="flex justify-between items-center px-1">
                   <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
                     Letras Disponíveis
                   </span>
                   <button
                     onClick={shufflePool}
-                    className="flex items-center gap-1 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/60 rounded-lg text-[10px] font-black uppercase tracking-wider active:scale-95 transition-transform"
+                    className={`flex items-center gap-1 px-3 py-1 border rounded-lg text-[10px] font-black uppercase tracking-wider active:scale-95 transition-all ${
+                      theme === "dark"
+                        ? "bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700/60"
+                        : "bg-white hover:bg-slate-50 text-slate-600 border-slate-250 shadow-sm"
+                    }`}
                   >
-                    🔄 Embaralhar
+                    🔀 Embaralhar
                   </button>
                 </div>
 
-                <div className="flex flex-wrap gap-2.5 justify-center w-full min-h-[60px]">
+                <div className="flex flex-wrap gap-2 justify-center w-full min-h-[60px]">
                   {poolLetters.map((letter) => {
                     const isUsed = letter.usedInCell !== null;
                     return (
@@ -1141,8 +1302,12 @@ export default function HomeRoot() {
                         disabled={isUsed}
                         className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl font-black text-base flex items-center justify-center transition-all duration-150 border ${
                           isUsed
-                            ? "bg-slate-950/40 border-slate-900 text-slate-700 opacity-20 cursor-not-allowed"
-                            : "bg-slate-800 hover:bg-slate-700 text-slate-100 border-slate-600/80 shadow-md active:scale-90 hover:scale-105 active:bg-dentist-500 active:text-white"
+                            ? theme === "dark"
+                              ? "bg-slate-950/40 border-slate-900 text-slate-700 opacity-20 cursor-not-allowed"
+                              : "bg-slate-300/20 border-slate-300 text-slate-400 opacity-20 cursor-not-allowed"
+                            : theme === "dark"
+                            ? "bg-slate-800 hover:bg-slate-700 text-slate-100 border-slate-600/80 shadow-md active:scale-90 hover:scale-105 active:bg-dentist-500 active:text-white"
+                            : "bg-white hover:bg-slate-50 text-slate-800 border-slate-300 shadow-md active:scale-90 hover:scale-105 active:bg-dentist-500 active:text-white"
                         }`}
                       >
                         {letter.char}
@@ -1153,15 +1318,25 @@ export default function HomeRoot() {
               </div>
 
               {/* Mascote Interativo de Dicas (CodyCross/Duolingo Style) */}
-              <div className="glass-panel p-3 w-full rounded-2xl border border-darkbg-border flex items-center gap-3 bg-gradient-to-tr from-slate-900/60 to-dentist-950/20 shadow-md">
+              <div className={`p-3 w-full rounded-2xl border flex items-center gap-3 shadow-md ${
+                theme === "dark" 
+                  ? "glass-panel border-darkbg-border bg-gradient-to-tr from-slate-900/60 to-dentist-950/20" 
+                  : "bg-white border-slate-200 shadow-sm"
+              }`}>
                 <img
                   src="/mascot.png"
                   alt="Mascote"
                   className="w-10 h-10 object-contain shrink-0 animate-bounce-slow"
                 />
-                <div className="relative bg-slate-800/85 border border-slate-700/50 p-2.5 rounded-xl text-left flex-1">
-                  <div className="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-slate-850" />
-                  <p className="text-[10px] font-bold text-slate-200 leading-normal">
+                <div className={`relative border p-2.5 rounded-xl text-left flex-1 ${
+                  theme === "dark" 
+                    ? "bg-slate-800/85 border-slate-700 text-slate-200" 
+                    : "bg-slate-50 border-slate-200 text-slate-700"
+                }`}>
+                  <div className={`absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent ${
+                    theme === "dark" ? "border-r-slate-800" : "border-r-slate-50"
+                  }`} />
+                  <p className="text-[10px] font-bold leading-normal">
                     {mascotTip}
                   </p>
                 </div>
@@ -1169,11 +1344,15 @@ export default function HomeRoot() {
 
               {/* Painel Educacional Dinâmico (Aula Rápida) */}
               {explanationActive && activeWord && (
-                <div className="glass-panel p-3.5 w-full rounded-2xl border border-emerald-500 bg-emerald-500/5 animate-fade-in flex flex-col gap-1">
-                  <span className="text-[9px] text-emerald-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
+                <div className={`p-3.5 w-full rounded-2xl border animate-fade-in flex flex-col gap-1 ${
+                  theme === "dark"
+                    ? "border-emerald-500 bg-emerald-500/5 text-slate-200"
+                    : "border-emerald-500 bg-emerald-50/60 text-slate-800"
+                }`}>
+                  <span className="text-[9px] text-emerald-500 font-extrabold uppercase tracking-wider flex items-center gap-1">
                     📖 Aula Rápida: {activeWord.word}
                   </span>
-                  <p className="text-xs font-semibold text-slate-200 leading-relaxed">
+                  <p className="text-xs font-semibold leading-relaxed">
                     {activeWord.explanation}
                   </p>
                 </div>
