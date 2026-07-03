@@ -97,6 +97,7 @@ export default function HomeRoot() {
   const [focusedCell, setFocusedCell] = useState<{ x: number; y: number } | null>(null);
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [solvedWords, setSolvedWords] = useState<number[]>([]);
+  const [hintedCells, setHintedCells] = useState<string[]>([]);
   const [incorrectWords, setIncorrectWords] = useState<number[]>([]);
   const [poolLetters, setPoolLetters] = useState<{ id: string; char: string; usedInCell: string | null }[]>([]);
   const [timeSpent, setTimeSpent] = useState(0);
@@ -264,6 +265,7 @@ export default function HomeRoot() {
           setCurrentLevelId(levelId);
           setInputs(activeGame.inputs || {});
           setSolvedWords(activeGame.solvedWords || []);
+          setHintedCells(activeGame.hintedCells || []);
           setTimeSpent(activeGame.timeSpent || 0);
           setPerfectRun(activeGame.perfectRun ?? true);
           setHintsPenaltyPoints(activeGame.hintsPenaltyPoints || 0);
@@ -288,6 +290,7 @@ export default function HomeRoot() {
     setHintsUsedCount(0);
     setPerfectRun(true);
     setSolvedWords([]);
+    setHintedCells([]);
     setIncorrectWords([]);
     setInputs({});
     setFocusedCell(null);
@@ -309,13 +312,14 @@ export default function HomeRoot() {
         levelId: currentLevelId,
         inputs,
         solvedWords,
+        hintedCells,
         timeSpent,
         perfectRun,
         hintsPenaltyPoints,
         hintsUsedCount
       }));
     }
-  }, [currentLevelId, inputs, solvedWords, timeSpent, screen, perfectRun, hintsPenaltyPoints, hintsUsedCount]);
+  }, [currentLevelId, inputs, solvedWords, hintedCells, timeSpent, screen, perfectRun, hintsPenaltyPoints, hintsUsedCount]);
 
   // --- SINCRONIZA BANCO DE LETRAS DINÂMICO QUANDO A PALAVRA ATIVA MUDA ---
   useEffect(() => {
@@ -333,8 +337,9 @@ export default function HomeRoot() {
       const [cx, cy] = key.split(",").map(Number);
       const cellInfo = currentLevelData.grid[cy]?.[cx];
       if (cellInfo) {
-        const isSolved = cellInfo?.words?.some((num) => solvedWords.includes(num));
-        if (!isSolved) {
+        const isSolved = cellInfo?.words?.some((num) => solvedWords.includes(num)) || false;
+        const isHinted = hintedCells.includes(key);
+        if (!isSolved && !isHinted) {
           delete cleanedInputs[key];
           hasChanges = true;
         }
@@ -748,6 +753,13 @@ export default function HomeRoot() {
     const cost = costs[type];
 
     if (type === "letter") {
+      // Limite de 10 dicas por fase
+      if (hintsUsedCount >= 10) {
+        triggerToast("Limite de 10 dicas por fase atingido!", "💡");
+        soundManager.playSFX("error");
+        return;
+      }
+
       let targetCell = focusedCell;
 
       // Se não há célula focada, acha a primeira célula em branco da palavra ativa
@@ -799,7 +811,28 @@ export default function HomeRoot() {
         setHintsUsedCount((c) => c + 1);
         setPerfectRun(false);
 
+        // Protege a célula contra o limpador de palavras
+        setHintedCells((prev) => [...prev, key]);
+
         checkWordCompleteness(activeWord, nextInputs);
+
+        // Avança foco pulando células já resolvidas ou preenchidas por dicas/respostas
+        let next = getAdjacentCell(x, y, 1);
+        while (next) {
+          const nextCellInfo = currentLevelData.grid[next.y]?.[next.x];
+          const isNextSolved = nextCellInfo?.words?.some((num) => solvedWords.includes(num)) || false;
+          const nextKey = `${next.x},${next.y}`;
+          const nextVal = nextInputs[nextKey] || "";
+          
+          if (isNextSolved || nextVal !== "") {
+            next = getAdjacentCell(next.x, next.y, 1);
+          } else {
+            break;
+          }
+        }
+        if (next) {
+          setFocusedCell(next);
+        }
       }
     } else {
       // Outros tipos de dicas (half, explain, solve)
