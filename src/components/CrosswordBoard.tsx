@@ -170,14 +170,14 @@ export default function CrosswordBoard({
                         ? "bg-red-500/25 border-red-500 text-red-400"
                         : "bg-red-50 border-red-500 text-red-600"
                       : isFocused
-                      ? "bg-dentist-500 border-dentist-500 text-white shadow-md ring-2 ring-dentist-500/35 scale-105 z-10"
+                      ? "bg-[#ffee58] border-[#fbc02d] text-slate-900 shadow-md ring-2 ring-[#ffee58]/55 scale-105 z-10"
                       : inActiveWord
                       ? theme === "dark"
-                        ? "bg-dentist-500/10 border-dentist-500/35 text-slate-100"
-                        : "bg-dentist-50 border-dentist-200 text-slate-900"
+                        ? "bg-[#0d47a1]/50 border-[#1565c0]/50 text-slate-100"
+                        : "bg-[#bbdefb] border-[#90caf9] text-slate-900"
                       : theme === "dark"
-                      ? "bg-slate-800/80 border-slate-700/80 text-slate-100 hover:border-slate-500"
-                      : "bg-white border-slate-300 text-slate-900 shadow-sm hover:border-slate-400"
+                      ? "bg-slate-800 border-slate-700 text-slate-100 hover:border-slate-500"
+                      : "bg-white border-slate-350 text-slate-900 shadow-sm hover:border-slate-400"
                   }`}
                 >
                   {/* Badge Direcional Horizontal (Esquerda) */}

@@ -765,8 +765,8 @@ export default function HomeRoot() {
       <header className={`glass-panel border-b py-2.5 px-4 sticky top-0 z-35 flex justify-between items-center backdrop-blur-md transition-colors duration-200 ${
         theme === "dark" ? "border-darkbg-border bg-slate-950/40" : "border-slate-200 bg-white/40"
       }`}>
+        {/* Lado Esquerdo: Voltar + Menu */}
         <div className="flex items-center gap-2">
-          {/* Botão de Voltar */}
           {screen !== "home" && (
             <button
               onClick={() => {
@@ -790,7 +790,6 @@ export default function HomeRoot() {
             </button>
           )}
 
-          {/* Menu Hambúrguer */}
           <button
             onClick={() => {
               soundManager.playSFX("click");
@@ -806,23 +805,10 @@ export default function HomeRoot() {
           >
             <Menu size={16} />
           </button>
-          
-          {/* Logo do Jogo */}
-          <div
-            onClick={() => {
-              soundManager.playSFX("click");
-              setScreen("home");
-            }}
-            className="flex items-center gap-1.5 cursor-pointer select-none ml-1"
-          >
-            <h1 className="font-black text-sm sm:text-base tracking-wider text-dentist-500 uppercase">
-              OdontoCruzada
-            </h1>
-          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Alternar Tema */}
+        {/* Centro: Alternar Tema (Centralizado igual à referência) */}
+        <div className="flex items-center justify-center">
           <button
             onClick={() => {
               soundManager.playSFX("click");
@@ -837,7 +823,10 @@ export default function HomeRoot() {
           >
             {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
           </button>
+        </div>
 
+        {/* Lado Direito: Configurações + Moedas/Dicas */}
+        <div className="flex items-center gap-2">
           {/* Configurações */}
           <button
             onClick={() => {
@@ -854,7 +843,7 @@ export default function HomeRoot() {
             <SettingsIcon size={16} />
           </button>
 
-          {/* Botão de Dica (Apenas em Gameplay) */}
+          {/* Botão de Dica (Pílula Azul) */}
           {screen === "game" && (
             <div className="relative">
               <button
@@ -862,10 +851,10 @@ export default function HomeRoot() {
                   soundManager.playSFX("click");
                   setHintMenuOpen(!hintMenuOpen);
                 }}
-                className="px-3.5 py-1.5 bg-dentist-500 hover:bg-dentist-600 text-white rounded-lg text-xs font-black uppercase transition-all active:scale-95 shadow-sm shadow-btn-primary flex items-center gap-1"
+                className="px-4 py-1.5 bg-[#2196f3] hover:bg-[#1976d2] text-white rounded-lg text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-md flex items-center gap-1.5"
               >
                 <span>Dica</span>
-                <span className="text-[10px]">▼</span>
+                <span className="text-[9px]">▼</span>
               </button>
               
               {hintMenuOpen && (
@@ -1184,32 +1173,25 @@ export default function HomeRoot() {
                 />
               </div>
 
-              {/* Banner de Dica Ativa com Setas de Navegação (Estilo CodyCross/Wordscapes) */}
+              {/* Banner de Dica Ativa com Setas de Navegação (Fidelidade Máxima à Referência) */}
               {activeWord && (
-                <div className={`w-full rounded-2xl shadow-md border p-3 flex items-center justify-between gap-3 animate-fade-in relative z-10 transition-colors duration-200 ${
+                <div className={`w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] py-4 px-6 flex items-center justify-between gap-4 animate-fade-in z-10 transition-colors duration-200 border-y shadow-sm ${
                   theme === "dark" 
-                    ? "bg-gradient-to-r from-slate-900 to-dentist-950/80 border-dentist-500/40 text-slate-100" 
-                    : "bg-gradient-to-r from-dentist-100 to-teal-50 border-dentist-300 text-slate-800"
+                    ? "bg-[#0d47a1]/90 border-[#1565c0] text-sky-100" 
+                    : "bg-[#bbdefb] border-[#90caf9] text-[#0d47a1]"
                 }`}>
                   {/* Seta Esquerda */}
                   <button
                     onClick={() => handleNavigateWord("prev")}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-90 border shadow-sm ${
-                      theme === "dark"
-                        ? "bg-slate-800 border-slate-700 text-slate-300 hover:text-white"
-                        : "bg-white border-slate-250 text-slate-600 hover:text-slate-800"
+                    className={`w-10 h-10 flex items-center justify-center transition-all active:scale-90 rounded-full shrink-0 ${
+                      theme === "dark" ? "text-sky-200 hover:bg-[#1565c0]/50" : "text-[#0d47a1] hover:bg-[#90caf9]/50"
                     }`}
                   >
-                    ◀
+                    <span className="text-xl font-bold">◀</span>
                   </button>
 
-                  <div className="flex-1 text-center">
-                    <span className={`text-[8px] font-black uppercase tracking-widest ${
-                      activeWord.dir === "H" ? "text-emerald-500" : "text-dentist-500"
-                    }`}>
-                      Pergunta {activeWord.number} ({activeWord.dir === "H" ? "Horizontal" : "Vertical"})
-                    </span>
-                    <p className="text-xs font-extrabold leading-normal mt-0.5">
+                  <div className="flex-1 text-center max-w-lg">
+                    <p className="text-sm sm:text-base font-extrabold leading-snug">
                       {activeWord.clue}
                     </p>
                   </div>
@@ -1217,13 +1199,11 @@ export default function HomeRoot() {
                   {/* Seta Direita */}
                   <button
                     onClick={() => handleNavigateWord("next")}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-90 border shadow-sm ${
-                      theme === "dark"
-                        ? "bg-slate-800 border-slate-700 text-slate-300 hover:text-white"
-                        : "bg-white border-slate-250 text-slate-600 hover:text-slate-800"
+                    className={`w-10 h-10 flex items-center justify-center transition-all active:scale-90 rounded-full shrink-0 ${
+                      theme === "dark" ? "text-sky-200 hover:bg-[#1565c0]/50" : "text-[#0d47a1] hover:bg-[#90caf9]/50"
                     }`}
                   >
-                    ▶
+                    <span className="text-xl font-bold">▶</span>
                   </button>
                 </div>
               )}
@@ -1273,7 +1253,7 @@ export default function HomeRoot() {
               )}
 
               {/* Banco de Letras Embaralhadas (Anagrama) */}
-              <div className={`w-full flex flex-col gap-3 p-4 rounded-3xl border shadow-md transition-colors ${
+              <div className={`w-full flex flex-col gap-3.5 p-4 rounded-3xl border shadow-md transition-colors ${
                 theme === "dark" ? "bg-slate-900/50 border-darkbg-border" : "bg-slate-200/40 border-slate-200"
               }`}>
                 <div className="flex justify-between items-center px-1">
@@ -1292,28 +1272,57 @@ export default function HomeRoot() {
                   </button>
                 </div>
 
-                <div className="flex flex-wrap gap-2 justify-center w-full min-h-[60px]">
-                  {poolLetters.map((letter) => {
-                    const isUsed = letter.usedInCell !== null;
-                    return (
-                      <button
-                        key={letter.id}
-                        onClick={() => handleSelectLetterFromPool(letter.id)}
-                        disabled={isUsed}
-                        className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl font-black text-base flex items-center justify-center transition-all duration-150 border ${
-                          isUsed
-                            ? theme === "dark"
-                              ? "bg-slate-950/40 border-slate-900 text-slate-700 opacity-20 cursor-not-allowed"
-                              : "bg-slate-300/20 border-slate-300 text-slate-400 opacity-20 cursor-not-allowed"
-                            : theme === "dark"
-                            ? "bg-slate-800 hover:bg-slate-700 text-slate-100 border-slate-600/80 shadow-md active:scale-90 hover:scale-105 active:bg-dentist-500 active:text-white"
-                            : "bg-white hover:bg-slate-50 text-slate-800 border-slate-300 shadow-md active:scale-90 hover:scale-105 active:bg-dentist-500 active:text-white"
-                        }`}
-                      >
-                        {letter.char}
-                      </button>
-                    );
-                  })}
+                {/* Duas Linhas do Banco de Letras (Cópia da Referência) */}
+                <div className="flex flex-col gap-2 w-full items-center">
+                  {/* Linha 1 */}
+                  <div className="flex gap-2 justify-center w-full">
+                    {poolLetters.slice(0, Math.ceil(poolLetters.length / 2)).map((letter) => {
+                      const isUsed = letter.usedInCell !== null;
+                      return (
+                        <button
+                          key={letter.id}
+                          onClick={() => handleSelectLetterFromPool(letter.id)}
+                          disabled={isUsed}
+                          className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl font-black text-base flex items-center justify-center transition-all duration-150 border ${
+                            isUsed
+                              ? theme === "dark"
+                                ? "bg-slate-950/40 border-slate-900 text-slate-700 opacity-20 cursor-not-allowed"
+                                : "bg-slate-300/20 border-slate-300 text-slate-400 opacity-20 cursor-not-allowed"
+                              : theme === "dark"
+                              ? "bg-slate-800 hover:bg-slate-700 text-slate-100 border-slate-600/80 shadow-md active:scale-90 hover:scale-105 active:bg-dentist-500 active:text-white"
+                              : "bg-white hover:bg-slate-50 text-slate-800 border-slate-300 shadow-md active:scale-90 hover:scale-105 active:bg-dentist-500 active:text-white"
+                          }`}
+                        >
+                          {letter.char}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Linha 2 */}
+                  <div className="flex gap-2 justify-center w-full">
+                    {poolLetters.slice(Math.ceil(poolLetters.length / 2)).map((letter) => {
+                      const isUsed = letter.usedInCell !== null;
+                      return (
+                        <button
+                          key={letter.id}
+                          onClick={() => handleSelectLetterFromPool(letter.id)}
+                          disabled={isUsed}
+                          className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl font-black text-base flex items-center justify-center transition-all duration-150 border ${
+                            isUsed
+                              ? theme === "dark"
+                                ? "bg-slate-950/40 border-slate-900 text-slate-700 opacity-20 cursor-not-allowed"
+                                : "bg-slate-300/20 border-slate-300 text-slate-400 opacity-20 cursor-not-allowed"
+                              : theme === "dark"
+                              ? "bg-slate-800 hover:bg-slate-700 text-slate-100 border-slate-600/80 shadow-md active:scale-90 hover:scale-105 active:bg-dentist-500 active:text-white"
+                              : "bg-white hover:bg-slate-50 text-slate-800 border-slate-300 shadow-md active:scale-90 hover:scale-105 active:bg-dentist-500 active:text-white"
+                          }`}
+                        >
+                          {letter.char}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
