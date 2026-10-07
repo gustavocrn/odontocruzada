@@ -1,31 +1,25 @@
 import "./globals.css";
-import { Outfit } from "next/font/google";
+import { Inter } from "next/font/google";
 import { Metadata, Viewport } from "next";
+import { AuthProvider } from "../context/AuthContext";
 
-const outfit = Outfit({
+const inter = Inter({
   subsets: ["latin"],
   variable: "--font-outfit",
-  weight: ["300", "400", "500", "600", "700", "800"],
+  display: "swap"
 });
 
 export const metadata: Metadata = {
-  title: "OdontoCross - Palavras Cruzadas Odontológicas",
-  description: "Desafie seu conhecimento clínico, anatomia e procedimentos em odontologia em 50 fases de palavras cruzadas.",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "OdontoCross",
-  },
+  title: "GC SDR Imobiliário | Gustavo Carneiro — Corretor de Imóveis",
+  description: "Plataforma SDR e CRM de Inteligência Imobiliária para Gestão e Qualificação de Leads de Alto Padrão.",
+  authors: [{ name: "Gustavo Carneiro" }],
 };
 
 export const viewport: Viewport = {
-  themeColor: "#14a3b5",
+  themeColor: "#0B192C",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  userScalable: false,
-  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -34,9 +28,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR" className={`${outfit.variable}`}>
-      <body className="bg-darkbg text-slate-100 min-h-screen overflow-x-hidden selection:bg-dentist-500 selection:text-white">
-        {children}
+    <html lang="pt-BR" className={`${inter.variable}`}>
+      <body className="bg-slate-50 text-slate-900 min-h-screen antialiased selection:bg-brand-600 selection:text-white">
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );
