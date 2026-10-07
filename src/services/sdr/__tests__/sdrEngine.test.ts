@@ -14,6 +14,7 @@ import { NextRequest } from 'next/server';
 import crypto from 'crypto';
 import { GET as WebhookGET, POST as WebhookPOST } from '@/app/api/webhooks/whatsapp/route';
 import { POST as MockPOST } from '@/app/api/webhooks/whatsapp/mock/route';
+import { POST as InternalWorkerPOST } from '@/app/api/internal/process-whatsapp-jobs/route';
 import { WhatsAppProvider } from '@/services/whatsapp/WhatsAppProvider';
 import { getLocalQueueJobsForTest, enqueueWebhookJob, claimWebhookJobs, completeWebhookJob, failWebhookJob, clearLocalQueueJobsForTest } from '@/services/whatsapp/queueService';
 import { processNextWhatsAppJobs, processSingleWhatsAppJob } from '@/services/whatsapp/whatsappWorker';
@@ -2719,9 +2720,191 @@ assert(
   'TESTE DW12 — documento em mídia permanece unclassified_media sem marcar holerite = true por OCR'
 );
 
+// -----------------------------------------------------------------------------
+// TESTE DX1: rota privada do worker sem Authorization é rejeitada com status 401
+// -----------------------------------------------------------------------------
+process.env.CRON_SECRET = 'secret_teste_dx_oficial';
+const reqDX1 = new NextRequest('http://localhost:3000/api/internal/process-whatsapp-jobs', {
+  method: 'POST'
+});
+const resDX1 = await InternalWorkerPOST(reqDX1);
+const bodyDX1 = await resDX1.json();
+assert(
+  resDX1.status === 401 && bodyDX1.success === false,
+  'TESTE DX1 — rota interna do worker sem cabeçalho Authorization é rejeitada com HTTP 401 Unauthorized'
+);
+
+// -----------------------------------------------------------------------------
+// TESTE DX2: rota privada do worker com Authorization incorreta é rejeitada com 401
+// -----------------------------------------------------------------------------
+const reqDX2 = new NextRequest('http://localhost:3000/api/internal/process-whatsapp-jobs', {
+  method: 'POST',
+  headers: { 'Authorization': 'Bearer secret_incorreto_dx2' }
+});
+const resDX2 = await InternalWorkerPOST(reqDX2);
+const bodyDX2 = await resDX2.json();
+assert(
+  resDX2.status === 401 && bodyDX2.success === false,
+  'TESTE DX2 — rota interna do worker com token Bearer incorreto é rejeitada com HTTP 401'
+);
+
+// -----------------------------------------------------------------------------
+// TESTE DX3: CRON_SECRET ausente no servidor faz a rota falhar em modo seguro (Fail-Closed 401)
+// -----------------------------------------------------------------------------
+const origCronSecretDX3 = process.env.CRON_SECRET;
+delete process.env.CRON_SECRET;
+const reqDX3 = new NextRequest('http://localhost:3000/api/internal/process-whatsapp-jobs', {
+  method: 'POST',
+  headers: { 'Authorization': 'Bearer secret_teste_dx_oficial' }
+});
+const resDX3 = await InternalWorkerPOST(reqDX3);
+process.env.CRON_SECRET = origCronSecretDX3;
+assert(
+  resDX3.status === 401,
+  'TESTE DX3 — se CRON_SECRET estiver ausente no servidor, a rota falha em modo seguro (Fail-Closed 401)'
+);
+
+// -----------------------------------------------------------------------------
+// TESTE DX4: Authorization com CRON_SECRET correto executa o worker com sucesso (200 OK)
+// -----------------------------------------------------------------------------
+process.env.CRON_SECRET = 'secret_valido_dx4';
+const reqDX4 = new NextRequest('http://localhost:3000/api/internal/process-whatsapp-jobs?limit=5', {
+  method: 'POST',
+  headers: { 'Authorization': 'Bearer secret_valido_dx4' }
+});
+const resDX4 = await InternalWorkerPOST(reqDX4);
+const bodyDX4 = await resDX4.json();
+assert(
+  resDX4.status === 200 && bodyDX4.success === true && typeof bodyDX4.summary?.processedCount === 'number',
+  'TESTE DX4 — rota interna com CRON_SECRET válido executa o worker e retorna resumo operacional sanitizado (200 OK)'
+);
+
+// -----------------------------------------------------------------------------
+// TESTE DX5: mensagem e job duravelmente persistidos na webhook_queue antes do disparo
+// -----------------------------------------------------------------------------
+clearLocalQueueJobsForTest();
+process.env.META_WA_APP_SECRET = 'secret_teste_dx5';
+process.env.CRON_SECRET = 'cron_secret_dx5';
+const payloadDX5 = JSON.stringify({
+  entry: [{
+    changes: [{
+      value: {
+        messages: [{
+          id: 'wamid.test.dx5',
+          from: '5542999990055',
+          type: 'text',
+          text: { body: 'Quero saber sobre casas em Ponta Grossa' }
+        }],
+        contacts: [{ wa_id: '5542999990055', profile: { name: 'Cliente DX5' } }]
+      }
+    }]
+  }]
+});
+const sigDX5 = 'sha256=' + crypto.createHmac('sha256', 'secret_teste_dx5').update(payloadDX5).digest('hex');
+
+const reqDX5 = new NextRequest('http://localhost:3000/api/webhooks/whatsapp', {
+  method: 'POST',
+  headers: { 'x-hub-signature-256': sigDX5 },
+  body: payloadDX5
+});
+
+const fetchBackupDX5 = global.fetch;
+let triggerCalledDX5 = false;
+global.fetch = (async (url: string, opts?: any) => {
+  if (String(url).includes('/api/internal/process-whatsapp-jobs')) {
+    triggerCalledDX5 = true;
+    assert(opts?.headers?.Authorization === 'Bearer cron_secret_dx5', 'TESTE DX5 — disparo do worker assinado com CRON_SECRET no cabeçalho Authorization');
+  }
+  return new Response(JSON.stringify({ success: true }), { status: 200 });
+}) as any;
+
+const resDX5 = await WebhookPOST(reqDX5);
+global.fetch = fetchBackupDX5;
+
+const jobsDX5 = getLocalQueueJobsForTest();
+assert(
+  resDX5.status === 200 && jobsDX5.length > 0 && Boolean(triggerCalledDX5),
+  'TESTE DX5 — webhook envia resposta 200 para a Meta com mensagem e job duravelmente persistidos na fila'
+);
+
+// -----------------------------------------------------------------------------
+// TESTE DX6: falha no disparo imediato não apaga nem invalida o job da fila durável
+// -----------------------------------------------------------------------------
+clearLocalQueueJobsForTest();
+const payloadDX6 = JSON.stringify({
+  entry: [{
+    changes: [{
+      value: {
+        messages: [{
+          id: 'wamid.test.dx6',
+          from: '5542999990066',
+          type: 'text',
+          text: { body: 'Mensagem de teste falha no fetch imediato' }
+        }],
+        contacts: [{ wa_id: '5542999990066', profile: { name: 'Cliente DX6' } }]
+      }
+    }]
+  }]
+});
+const sigDX6 = 'sha256=' + crypto.createHmac('sha256', 'secret_teste_dx5').update(payloadDX6).digest('hex');
+
+const reqDX6 = new NextRequest('http://localhost:3000/api/webhooks/whatsapp', {
+  method: 'POST',
+  headers: { 'x-hub-signature-256': sigDX6 },
+  body: payloadDX6
+});
+
+const fetchBackupDX6 = global.fetch;
+global.fetch = (async (url: string) => {
+  if (String(url).includes('/api/internal/process-whatsapp-jobs')) {
+    throw new Error('Falha de rede Simulada no Fetch Imediato');
+  }
+  return new Response(JSON.stringify({ success: true }), { status: 200 });
+}) as any;
+
+const resDX6 = await WebhookPOST(reqDX6);
+global.fetch = fetchBackupDX6;
+
+const jobsDX6 = getLocalQueueJobsForTest();
+const jobDX6 = jobsDX6.find(j => j.status === 'pending');
+assert(
+  resDX6.status === 200 && jobDX6 !== undefined && jobDX6.status === 'pending',
+  'TESTE DX6 — se o disparo imediato falhar, o job permanece intacto com status pending na webhook_queue'
+);
+
+// -----------------------------------------------------------------------------
+// TESTE DX7: webhook duplicado com mesmo wamid continua 100% idempotente
+// -----------------------------------------------------------------------------
+const reqDX7 = new NextRequest('http://localhost:3000/api/webhooks/whatsapp', {
+  method: 'POST',
+  headers: { 'x-hub-signature-256': sigDX6 },
+  body: payloadDX6
+});
+
+const resDX7 = await WebhookPOST(reqDX7);
+const bodyDX7 = await resDX7.json();
+
+assert(
+  resDX7.status === 200 && bodyDX7.success === true && bodyDX7.message.includes('duplicada'),
+  'TESTE DX7 — webhook duplicado com mesmo wamid é capturado pela idempotência sem criar job duplicado'
+);
+
+// -----------------------------------------------------------------------------
+// TESTE DX8: lead com ai_paused = true completa o job com status completed sem chamar OpenAI
+// -----------------------------------------------------------------------------
+const leadDX8 = await leadService.createLead({ name: 'Lead DX8 Pausado', waId: '5542999990088', phone: '+5542999990088', aiPaused: true });
+const msgDX8 = await addConversationMessage(leadDX8.id, 'inbound', 'lead', 'Olá!', 'wamid.dx8');
+const jobDX8 = await enqueueWebhookJob(msgDX8!.id, 'process_inbound_sdr');
+
+const resSingleDX8 = await processSingleWhatsAppJob(jobDX8!);
+assert(
+  resSingleDX8.status === 'completed' && Boolean(resSingleDX8.reason?.includes('ai_paused')),
+  'TESTE DX8 — lead com ai_paused = true finaliza job como completed com motivo ai_paused sem chamar OpenAI nem enviar mensagens'
+);
+
 console.log('\n================================================================');
 if (failedTests === 0) {
-  console.log('✨ TODOS OS TESTES (A–DW12) PASSARAM COM 100% DE SUCESSO! ✨');
+  console.log('✨ TODOS OS TESTES (A–DX8) PASSARAM COM 100% DE SUCESSO! ✨');
   console.log('================================================================\n');
 } else {
   console.error(`❌ OCORRERAM ${failedTests} FALHAS NOS TESTES!`);

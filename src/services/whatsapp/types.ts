@@ -11,6 +11,18 @@ export type WhatsAppMessageStatus =
 
 export type WhatsAppChannel = 'whatsapp' | 'simulator';
 
+/**
+ * Normaliza número de telefone para o padrão E.164 sem alterar o 9º dígito arbitrariamente.
+ */
+export function normalizePhoneToE164(rawPhone: string): string {
+  const digits = rawPhone.replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('55')) {
+    return `+${digits}`;
+  }
+  return `+55${digits}`;
+}
+
 export interface WhatsAppSendTextOptions {
   to: string;
   text: string;

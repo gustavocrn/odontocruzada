@@ -351,7 +351,8 @@ export const leadService = {
             status: newLeadData.status || 'Novo',
             purchase_timeline: newLeadData.purchaseTimeline || 'Não informado',
             next_action: newLeadData.nextAction || 'Realizar primeiro contato',
-            current_property_id: newLeadData.currentPropertyId || null
+            current_property_id: newLeadData.currentPropertyId || null,
+            ai_paused: Boolean(newLeadData.aiPaused)
           })
           .select()
           .single();
@@ -490,6 +491,7 @@ export const leadService = {
       classification: newLeadData.classification || 'nao_classificado',
       status: newLeadData.status || 'Novo',
       nextAction: newLeadData.nextAction || 'Realizar primeiro contato',
+      aiPaused: Boolean(newLeadData.aiPaused),
       activities: [
         {
           id: `act-${Date.now()}`,

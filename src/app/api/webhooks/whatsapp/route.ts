@@ -1,23 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { waitUntil } from '@vercel/functions';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { leadService } from '@/services/leadService';
 import { addConversationMessage } from '@/services/sdr/conversationService';
 import { enqueueWebhookJob } from '@/services/whatsapp/queueService';
-import { MetaWebhookPayload } from '@/services/whatsapp/types';
+import { MetaWebhookPayload, normalizePhoneToE164 } from '@/services/whatsapp/types';
 import { propertyService } from '@/services/propertyService';
-
-/**
- * Normaliza número de telefone para o padrão E.164 sem alterar o 9º dígito arbitrariamente.
- */
-export function normalizePhoneToE164(rawPhone: string): string {
-  const digits = rawPhone.replace(/\D/g, '');
-  if (!digits) return '';
-  if (digits.startsWith('55')) {
-    return `+${digits}`;
-  }
-  return `+55${digits}`;
-}
 
 /**
  * Valida a assinatura HMAC SHA-256 enviada pela Meta no cabeçalho x-hub-signature-256.
@@ -229,6 +218,29 @@ export async function POST(req: NextRequest) {
 
     // 7. ENFILEIRAR TRABALHO APONTANDO APENAS PARA O conversation_message_id (SEM DUPLICAR TEXTO/PII NA FILA)
     const queuedJob = await enqueueWebhookJob(insertedMessage.id, 'process_inbound_sdr');
+
+    // 8. DISPARO IMEDIATO DO WORKER VIA waitUntil() SERVERLESS (SEM RETER A RESPOSTA HTTP DO WEBHOOK)
+    const cronSecret = process.env.CRON_SECRET;
+    if (cronSecret && cronSecret.trim()) {
+      try {
+        const origin = req.nextUrl.origin || 'http://localhost:3000';
+        const triggerUrl = new URL('/api/internal/process-whatsapp-jobs', origin).toString();
+
+        waitUntil(
+          fetch(triggerUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${cronSecret.trim()}`,
+              'Content-Type': 'application/json'
+            }
+          }).catch((fetchErr) => {
+            console.error('Falha no disparo imediato do worker (job permanece seguro na webhook_queue):', fetchErr?.message || fetchErr);
+          })
+        );
+      } catch (triggerErr: any) {
+        console.error('Erro ao agendar disparo imediato com waitUntil():', triggerErr?.message || triggerErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,
