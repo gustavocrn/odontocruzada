@@ -12,6 +12,7 @@ import {
 } from '../types';
 import { INITIAL_LEADS, INITIAL_TASKS } from '../data/mockData';
 import { supabase, isSupabaseConfigured, getSupabaseConfigStatus } from '../lib/supabase';
+import { supabaseAdmin, isSupabaseAdminConfigured } from '../lib/supabaseAdmin';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { clearConversationMessagesForLead } from './sdr/conversationService';
 
@@ -178,8 +179,8 @@ export const leadService = {
     },
     client?: SupabaseClient | null
   ): Promise<Lead[]> {
-    const db = client || supabase;
-    if (isSupabaseConfigured() && db) {
+    const db = client || supabaseAdmin || supabase;
+    if (db && (isSupabaseAdminConfigured() || isSupabaseConfigured())) {
       try {
         let query = db
           .from('leads')
@@ -258,8 +259,8 @@ export const leadService = {
 
   // Get lead by ID
   async getLeadById(id: string, client?: SupabaseClient | null): Promise<Lead | null> {
-    const db = client || supabase;
-    if (isSupabaseConfigured() && db) {
+    const db = client || supabaseAdmin || supabase;
+    if (db && (isSupabaseAdminConfigured() || isSupabaseConfigured())) {
       try {
         const { data, error } = await db
           .from('leads')
@@ -291,8 +292,8 @@ export const leadService = {
     phoneE164?: string,
     client?: SupabaseClient | null
   ): Promise<Lead | null> {
-    const db = client || supabase;
-    if (isSupabaseConfigured() && db) {
+    const db = client || supabaseAdmin || supabase;
+    if (db && (isSupabaseAdminConfigured() || isSupabaseConfigured())) {
       try {
         if (waId) {
           const { data, error } = await db
@@ -327,9 +328,9 @@ export const leadService = {
   // Create a new Lead
   async createLead(newLeadData: Partial<Lead>, client?: SupabaseClient | null): Promise<Lead> {
     const timestamp = new Date().toISOString();
-    const db = client || supabase;
+    const db = client || supabaseAdmin || supabase;
 
-    if (isSupabaseConfigured() && db) {
+    if (db && (isSupabaseAdminConfigured() || isSupabaseConfigured())) {
       try {
         // Insert main lead
         const { data: leadRow, error: leadErr } = await db

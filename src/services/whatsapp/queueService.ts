@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { supabaseAdmin, isSupabaseAdminConfigured } from '@/lib/supabaseAdmin';
 import { WebhookQueueJob } from './types';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { leadService } from '../leadService';
@@ -23,11 +24,11 @@ export async function enqueueWebhookJob(
   jobType: 'process_inbound_sdr' | 'send_outbound_whatsapp' | 'handle_status_update',
   client?: SupabaseClient | null
 ): Promise<WebhookQueueJob | null> {
-  const db = client || supabase;
+  const db = client || supabaseAdmin || supabase;
   const now = new Date().toISOString();
 
   // Verificação de Unicidade Composta em modo local/fallback
-  if (!isSupabaseConfigured() || !db) {
+  if (!db || (!isSupabaseAdminConfigured() && !isSupabaseConfigured())) {
     const existing = localQueueJobs.find(
       (j) => j.conversationMessageId === conversationMessageId && j.jobType === jobType
     );
@@ -117,11 +118,11 @@ export async function claimWebhookJobs(
   lockTimeoutSeconds: number = 300,
   client?: SupabaseClient | null
 ): Promise<WebhookQueueJob[]> {
-  const db = client || supabase;
+  const db = client || supabaseAdmin || supabase;
   const nowMs = Date.now();
   const nowIso = new Date(nowMs).toISOString();
 
-  if (!isSupabaseConfigured() || !db) {
+  if (!db || (!isSupabaseAdminConfigured() && !isSupabaseConfigured())) {
     const claimed: WebhookQueueJob[] = [];
     for (const job of localQueueJobs) {
       if (claimed.length >= batchSize) break;
@@ -190,7 +191,7 @@ export async function completeWebhookJob(
   jobId: string,
   client?: SupabaseClient | null
 ): Promise<boolean> {
-  const db = client || supabase;
+  const db = client || supabaseAdmin || supabase;
   const now = new Date().toISOString();
 
   const localIndex = localQueueJobs.findIndex((j) => j.id === jobId);
@@ -231,7 +232,7 @@ export async function failWebhookJob(
   leadIdForAlert?: string,
   client?: SupabaseClient | null
 ): Promise<WebhookQueueJob | null> {
-  const db = client || supabase;
+  const db = client || supabaseAdmin || supabase;
 
   let currentJob: WebhookQueueJob | null = null;
   const localIndex = localQueueJobs.findIndex((j) => j.id === jobId);
@@ -239,7 +240,7 @@ export async function failWebhookJob(
     currentJob = localQueueJobs[localIndex];
   }
 
-  if (isSupabaseConfigured() && db) {
+  if (db && (isSupabaseAdminConfigured() || isSupabaseConfigured())) {
     const { data } = await db.from('webhook_queue').select('*').eq('id', jobId).single();
     if (data) {
       currentJob = {
@@ -281,7 +282,7 @@ export async function failWebhookJob(
       localQueueJobs[localIndex] = deadLetterJob;
     }
 
-    if (isSupabaseConfigured() && db) {
+    if (db && (isSupabaseAdminConfigured() || isSupabaseConfigured())) {
       await db
         .from('webhook_queue')
         .update({
@@ -326,7 +327,7 @@ export async function failWebhookJob(
     localQueueJobs[localIndex] = retriedJob;
   }
 
-  if (isSupabaseConfigured() && db) {
+  if (db && (isSupabaseAdminConfigured() || isSupabaseConfigured())) {
     await db
       .from('webhook_queue')
       .update({

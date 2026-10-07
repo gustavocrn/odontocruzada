@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { supabaseAdmin, isSupabaseAdminConfigured } from '@/lib/supabaseAdmin';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { leadService } from '../leadService';
 import { propertyService } from '../propertyService';
@@ -59,12 +60,12 @@ export async function processSingleWhatsAppJob(
   client?: SupabaseClient | null
 ): Promise<{ jobId: string; status: 'completed' | 'failed' | 'dead_letter'; reason?: string }> {
   try {
-    const db = client || supabase;
+    const db = client || supabaseAdmin || supabase;
 
     // 1. CARREGAR MENSAGEM INBOUND DE conversation_messages
     let inboundMessage: any = null;
 
-    if (!isSupabaseConfigured() || !db) {
+    if (!db || (!isSupabaseAdminConfigured() && !isSupabaseConfigured())) {
       // Fallback local
       const msgs = await getConversationMessages('', client);
       inboundMessage = msgs.find((m) => m.id === job.conversationMessageId);
@@ -266,7 +267,7 @@ export async function processSingleWhatsAppJob(
 
         if (preambularOutbound) {
           preambularOutbound.metadata = { ...preambularOutbound.metadata, status: 'failed', errorCode: 'NO_TEMPLATE_CONFIGURED' };
-          if (isSupabaseConfigured() && db) {
+          if (db && (isSupabaseAdminConfigured() || isSupabaseConfigured())) {
             await db.from('conversation_messages').update({
               metadata: preambularOutbound.metadata
             }).eq('id', preambularOutbound.id);
@@ -296,7 +297,7 @@ export async function processSingleWhatsAppJob(
         if (sendResult.messageId) {
           preambularOutbound.externalId = sendResult.messageId;
         }
-        if (isSupabaseConfigured() && db) {
+        if (db && (isSupabaseAdminConfigured() || isSupabaseConfigured())) {
           await db.from('conversation_messages').update({
             status: 'sent',
             external_id: sendResult.messageId || turnLogicalId,
@@ -318,7 +319,7 @@ export async function processSingleWhatsAppJob(
           errorCode: 'AMBIGUOUS_TIMEOUT',
           errorMessage: 'Timeout na API da Meta. Envio suspenso para impedir duplicidade.'
         };
-        if (isSupabaseConfigured() && db) {
+        if (db && (isSupabaseAdminConfigured() || isSupabaseConfigured())) {
           await db.from('conversation_messages').update({
             status: 'failed',
             error_code: 'AMBIGUOUS_TIMEOUT',

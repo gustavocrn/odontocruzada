@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { waitUntil } from '@vercel/functions';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { supabaseAdmin, isSupabaseAdminConfigured } from '@/lib/supabaseAdmin';
 import { leadService } from '@/services/leadService';
 import { addConversationMessage } from '@/services/sdr/conversationService';
 import { enqueueWebhookJob } from '@/services/whatsapp/queueService';
@@ -92,7 +93,8 @@ export async function POST(req: NextRequest) {
         const newStatus = statusEvent.status;
 
         // Atualiza status da mensagem outbound no banco (não renova a janela de 24h!)
-        if (isSupabaseConfigured() && supabase) {
+        const db = supabaseAdmin || supabase;
+        if (db && (isSupabaseAdminConfigured() || isSupabaseConfigured())) {
           const updateData: any = { status: newStatus };
           if (newStatus === 'failed' && statusEvent.errors?.[0]) {
             const err = statusEvent.errors[0];
@@ -100,7 +102,7 @@ export async function POST(req: NextRequest) {
             updateData.error_message = String(err.title || 'Falha na entrega Meta').substring(0, 200);
           }
 
-          await supabase
+          await db
             .from('conversation_messages')
             .update(updateData)
             .eq('external_id', wamid);

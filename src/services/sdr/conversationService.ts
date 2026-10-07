@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { supabaseAdmin, isSupabaseAdminConfigured } from '@/lib/supabaseAdmin';
 import { ConversationMessage, MessageDirection, SenderType } from '@/types';
 import { SupabaseClient } from '@supabase/supabase-js';
 
@@ -19,8 +20,8 @@ export async function getConversationMessages(
   leadId: string,
   client?: SupabaseClient | null
 ): Promise<ConversationMessage[]> {
-  const db = client || supabase;
-  if (!isSupabaseConfigured() || !db) {
+  const db = client || supabaseAdmin || supabase;
+  if (!db || (!isSupabaseAdminConfigured() && !isSupabaseConfigured())) {
     return leadId ? localMessages.filter((m) => m.leadId === leadId) : localMessages;
   }
 
@@ -72,8 +73,8 @@ export async function addConversationMessage(
     metadata: metadata || {}
   };
 
-  const db = client || supabase;
-  if (!isSupabaseConfigured() || !db) {
+  const db = client || supabaseAdmin || supabase;
+  if (!db || (!isSupabaseAdminConfigured() && !isSupabaseConfigured())) {
     // Idempotência atômica em modo local de teste (por externalId ou sdrTurnId)
     if (externalId && localMessages.some((m) => m.externalId === externalId)) {
       return null;
